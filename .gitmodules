@@ -1,0 +1,6 @@
+[submodule "api/api/account"]
+	path = api/api/account
+	url = https://github.com/Microserv-1/store-api.git
+[submodule "api/account"]
+	path = api/account
+	url = https://github.com/Microserv-1/store-api.git
