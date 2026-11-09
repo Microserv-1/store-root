@@ -29,6 +29,6 @@ pipeline {
     }
   }
   post {
-    always { sh 'docker compose -p store-integration down' }
+    always { sh 'docker compose -p store-integration down -v' }
   }
 }

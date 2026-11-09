@@ -15,7 +15,8 @@ base=["kubectl","--context","kind-microserv-store","-n","store"]
 for name,args in [("cluster",["get","deployments,pods,services,hpa","-o","wide"]),
                   ("resources",["top","pods"]),
                   ("events",["get","events","--sort-by=.lastTimestamp"])]:
-    (target/(name+".txt")).write_text(subprocess.check_output(base+args,text=True),encoding="utf-8")
+    raw=subprocess.check_output(base+args,text=True)
+    (target/(name+".txt")).write_text("\n".join(line.rstrip() for line in raw.splitlines())+"\n",encoding="utf-8")
 targets=json.loads(subprocess.check_output(base+["exec","deployment/prometheus","--","wget","-qO-","http://localhost:9090/api/v1/targets"],text=True))
 (target/"prometheus-targets.json").write_text(json.dumps(targets,indent=2))
 images={s:subprocess.check_output(["docker","image","inspect",f"microserv-store/{s}:local","--format","{{.Id}}"],text=True).strip() for s in ("account","auth","gateway")}
