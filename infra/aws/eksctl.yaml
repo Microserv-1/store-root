@@ -1,0 +1,31 @@
+# Review region, Kubernetes version and costs before provisioning.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: microserv-store
+  region: us-east-1
+  tags:
+    project: microserv-store
+    purpose: academic
+availabilityZones: [us-east-1a, us-east-1b]
+vpc:
+  nat:
+    gateway: Single
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+iam:
+  withOIDC: true
+managedNodeGroups:
+  - name: application
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 4
+    privateNetworking: true
+    volumeSize: 20
+    labels:
+      workload: store
+cloudWatch:
+  clusterLogging:
+    enableTypes: [api, audit, authenticator]

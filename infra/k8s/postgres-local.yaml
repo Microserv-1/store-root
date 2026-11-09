@@ -1,0 +1,47 @@
+# Local demonstration only. EKS uses a private RDS endpoint via DATABASE_URL.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: account-data, namespace: store}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: postgres, namespace: store}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        env:
+        - {name: POSTGRES_USER, value: store}
+        - {name: POSTGRES_DB, value: accounts}
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: store-secrets, key: POSTGRES_PASSWORD}
+        ports: [{containerPort: 5432}]
+        volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+        resources:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits: {cpu: '1', memory: 512Mi}
+        readinessProbe:
+          exec: {command: [pg_isready, -U, store, -d, accounts]}
+      volumes:
+      - name: data
+        persistentVolumeClaim: {claimName: account-data}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: store}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432}]

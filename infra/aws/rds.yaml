@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private PostgreSQL for Account in an existing EKS VPC
+Parameters:
+  VpcId: {Type: 'AWS::EC2::VPC::Id'}
+  PrivateSubnets: {Type: 'List<AWS::EC2::Subnet::Id>'}
+  WorkerSecurityGroup: {Type: 'AWS::EC2::SecurityGroup::Id'}
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    MaxLength: 64
+    AllowedPattern: '[a-f0-9]+'
+Resources:
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL access from EKS workers only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref WorkerSecurityGroup
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnets in two availability zones
+      SubnetIds: !Ref PrivateSubnets
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: postgres
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: '20'
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: accounts
+      MasterUsername: store
+      MasterUserPassword: !Ref DatabasePassword
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups: [!GetAtt DatabaseSecurityGroup.GroupId]
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 1
+      MultiAZ: false
+      AutoMinorVersionUpgrade: true
+Outputs:
+  DatabaseHost:
+    Value: !GetAtt Database.Endpoint.Address
+  DatabasePort:
+    Value: !GetAtt Database.Endpoint.Port

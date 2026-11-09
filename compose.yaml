@@ -1,0 +1,78 @@
+name: microserv-store
+services:
+  postgres:
+    image: postgres:16-alpine
+    command: [postgres, -c, hba_file=/etc/postgresql/pg_hba.conf]
+    environment:
+      POSTGRES_DB: accounts
+      POSTGRES_USER: store
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/setup-local.py}
+    volumes:
+      - account-data:/var/lib/postgresql/data
+      - ./infra/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U store -d accounts]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+  account:
+    image: microserv-store/account:local
+    build: ./api/account
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Run scripts/setup-local.py}
+      INTERNAL_AUTH_KEY: ${INTERNAL_AUTH_KEY:?Run scripts/setup-local.py}
+      DATABASE_URL: postgresql+psycopg://store:${POSTGRES_PASSWORD}@postgres:5432/accounts
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+  auth:
+    image: microserv-store/auth:local
+    build: ./api/auth
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_AUTH_KEY: ${INTERNAL_AUTH_KEY}
+      ACCOUNT_URL: http://account:8000
+      TOKEN_TTL_SECONDS: '1800'
+    depends_on:
+      account: {condition: service_healthy}
+    networks: [backend]
+  gateway:
+    image: microserv-store/gateway:local
+    build: ./api/gateway
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      ACCOUNT_URL: http://account:8000
+      AUTH_URL: http://auth:8000
+      PRODUCT_URL: http://product:8000
+      ORDER_URL: http://order:8000
+      EXCHANGE_URL: http://exchange:8000
+    ports: ["127.0.0.1:${GATEWAY_PORT:-8080}:8000"]
+    depends_on: [account, auth]
+    networks: [backend]
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    profiles: [monitoring]
+    volumes: [./infra/monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml:ro]
+    ports: [127.0.0.1:9090:9090]
+    networks: [backend]
+  grafana:
+    image: grafana/grafana:12.0.0
+    profiles: [monitoring]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: [127.0.0.1:3000:3000]
+    networks: [backend]
+networks:
+  backend: {}
+volumes:
+  account-data: {}

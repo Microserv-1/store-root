@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: account
+    static_configs: [{targets: ['account:8000']}]
+  - job_name: auth
+    metrics_path: /actuator/prometheus
+    static_configs: [{targets: ['auth:8000']}]
+  - job_name: gateway
+    static_configs: [{targets: ['gateway:8000']}]

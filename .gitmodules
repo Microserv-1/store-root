@@ -1,6 +1,12 @@
-[submodule "api/api/account"]
-	path = api/api/account
-	url = https://github.com/Microserv-1/store-api.git
 [submodule "api/account"]
 	path = api/account
-	url = https://github.com/Microserv-1/store-api.git
+	url = https://github.com/Microserv-1/store-account.git
+[submodule "api/auth"]
+	path = api/auth
+	url = https://github.com/Microserv-1/store-auth.git
+[submodule "api/gateway"]
+	path = api/gateway
+	url = https://github.com/Microserv-1/store-gateway.git
+[submodule "docs/site"]
+	path = docs/site
+	url = https://github.com/Microserv-1/store-docs-a.git

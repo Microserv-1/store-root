@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+*.env
+secrets/
+.tools/
+artifacts-*.log
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+artifacts/
+/site/
+*.tfstate*
+.terraform/
+*.tfvars

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: grafana, namespace: store}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: grafana}
+  template:
+    metadata:
+      labels: {app: grafana}
+    spec:
+      securityContext: {fsGroup: 472}
+      automountServiceAccountToken: false
+      containers:
+      - name: grafana
+        image: grafana/grafana:12.0.0
+        ports: [{containerPort: 3000}]
+        env:
+        - {name: GF_USERS_ALLOW_SIGN_UP, value: 'false'}
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef: {name: store-secrets, key: GRAFANA_PASSWORD}
+        resources:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits: {cpu: '1', memory: 512Mi}
+        readinessProbe:
+          httpGet: {path: /api/health, port: 3000}
+        volumeMounts:
+        - {name: datasource, mountPath: /etc/grafana/provisioning/datasources}
+        - {name: provider, mountPath: /etc/grafana/provisioning/dashboards}
+        - {name: dashboard, mountPath: /var/lib/grafana/dashboards}
+        - {name: data, mountPath: /var/lib/grafana}
+      volumes:
+      - name: datasource
+        configMap: {name: grafana-datasources}
+      - name: provider
+        configMap: {name: grafana-provider}
+      - name: dashboard
+        configMap: {name: grafana-dashboard}
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: grafana, namespace: store}
+spec:
+  selector: {app: grafana}
+  ports: [{port: 3000}]

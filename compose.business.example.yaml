@@ -1,0 +1,20 @@
+# Integration contract only: replace image references with B's actual published images.
+# B must add its databases, cache and broker with service-specific credentials.
+services:
+  product:
+    image: ${PRODUCT_IMAGE:?Set PRODUCT_IMAGE to B's immutable image}
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    networks: [backend]
+  order:
+    image: ${ORDER_IMAGE:?Set ORDER_IMAGE to B's immutable image}
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      PRODUCT_URL: http://product:8000
+      EXCHANGE_URL: http://exchange:8000
+    networks: [backend]
+  exchange:
+    image: ${EXCHANGE_IMAGE:?Set EXCHANGE_IMAGE to B's immutable Python image}
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    networks: [backend]
