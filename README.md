@@ -37,4 +37,4 @@ Após alterar um serviço, publique seu commit no repositório correspondente e 
 
 Documentação individual e comum: [store-docs-a](https://github.com/Microserv-1/store-docs-a). Os contratos iniciais de Account/Auth/Gateway precisam ser confrontados com os enunciados oficiais, ainda não fornecidos.
 
-Resultados locais e vídeo técnico: [estado e evidências](docs/site/docs/status.md). Os commits desta preparação ainda precisam ser publicados antes de um clone remoto recuperar os novos ponteiros. O teste `scripts/verify-local-clone.py` valida a estrutura usando URLs locais apenas no clone de verificação.
+Resultados locais e vídeo técnico: [estado e evidências](docs/site/docs/status.md). Os commits e ponteiros dos submódulos foram publicados, e o clone recursivo direto do GitHub foi validado com acesso aos repositórios privados. O teste `scripts/verify-local-clone.py` também permite validar a estrutura usando URLs locais apenas no clone de verificação.
