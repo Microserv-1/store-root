@@ -10,3 +10,15 @@
 [submodule "docs/site"]
 	path = docs/site
 	url = https://github.com/Microserv-1/store-docs-a.git
+[submodule "api/product"]
+	path = api/product
+	url = https://github.com/Microserv-1/store-product.git
+[submodule "api/order"]
+	path = api/order
+	url = https://github.com/Microserv-1/store-order.git
+[submodule "api/exchange"]
+	path = api/exchange
+	url = https://github.com/Microserv-1/store-exchange.git
+[submodule "docs/site-b"]
+	path = docs/site-b
+	url = https://github.com/Microserv-1/store-docs-b.git

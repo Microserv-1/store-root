@@ -1,40 +1,42 @@
 # Microserv Store
 
-Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.
+Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.2.
 
-Pessoa A: Account (Python/FastAPI), Auth (Java/Spring Boot), Gateway (Go), infraestrutura, observabilidade e balanceamento. Product, Order e Exchange são da Pessoa B e ainda não estão incluídos neste checkout.
+- **Pessoa A (Yuri Henrique)**: Account (Python/FastAPI), Auth (Java/Spring Boot), Gateway (Go), infraestrutura base, observabilidade e balanceamento.
+- **Pessoa B (Gustavo Lima Affonso Ferreira)**: Product (Python/FastAPI + Cache Redis), Order (Python/FastAPI + Mensageria RabbitMQ), Exchange (Python/FastAPI + APIs externas de câmbio com fallback), integração ponta a ponta, testes de gargalos e documentação da Pessoa B.
 
-## Executar localmente
+## Executar localmente (Docker Compose — 6 microsserviços + Postgres + Redis + RabbitMQ)
 
-Pré-requisitos: Git, Docker Compose e Python 3.10+. Java 21 e Go são compilados nos containers.
+Pré-requisitos: Git, Docker Compose e Python 3.10+. Java 21, Go e Python 3.12 são compilados nos containers.
 
-```powershell
+```bash
 git clone --recurse-submodules https://github.com/Microserv-1/store-root.git
 cd store-root
-python scripts/setup-local.py
-docker compose up --build -d
-python tests/smoke.py
+python3 scripts/setup-local.py
+docker compose --profile monitoring up --build -d
+python3 tests/smoke.py
+python3 tests/cache_bottleneck.py
+python3 tests/messaging_bottleneck.py
 ```
 
-Gateway: http://localhost:8080. Apenas ele publica portas de aplicação. O PostgreSQL persiste no volume `account-data`; os segredos locais são gerados em `.env`, ignorado pelo Git.
+Gateway: `http://localhost:8080`. Apenas ele publica portas de aplicação. O PostgreSQL persiste no volume `account-data`, o Redis no volume `redis-data` e o RabbitMQ no volume `rabbitmq-data`; os segredos locais são gerados em `.env`, ignorado pelo Git.
 
-```powershell
-docker compose --profile monitoring up -d
-python scripts/load.py --users 4 --duration 60 --scenario identity
+```bash
+python3 scripts/load.py --users 8 --duration 30 --scenario products_cached --output artifacts/load-products-cached.json
+python3 scripts/load.py --users 8 --duration 30 --scenario products_uncached --output artifacts/load-products-uncached.json
+python3 scripts/load.py --users 8 --duration 30 --scenario business_mix --output artifacts/load-business-mix.json
 ```
 
-Prometheus: http://localhost:9090. Grafana: http://localhost:3000, usuário `admin`, senha no campo `GRAFANA_PASSWORD` do `.env`. As interfaces administrativas ficam vinculadas ao loopback.
+Prometheus: `http://localhost:9090`. Grafana: `http://localhost:3000`, usuário `admin`, senha no campo `GRAFANA_PASSWORD` do `.env`. As interfaces administrativas ficam vinculadas ao loopback.
 
 ## Kubernetes e deploy
 
-Cada serviço tem Dockerfile, Jenkinsfile e `k8s/k8s.yaml`. Infraestrutura compartilhada em `infra/`; scripts em `scripts/`. Consulte [execução e deploy](docs/site/docs/deploy.md), [contratos para B](docs/site/docs/contracts.md) e [estado das verificações](docs/site/docs/status.md).
+Cada um dos 6 serviços tem `Dockerfile`, `Jenkinsfile` e `k8s/k8s.yaml` (com Deployment 2 réplicas, Service ClusterIP, HPA 2..5 em 60% de CPU e PDB). Infraestrutura compartilhada em `infra/`; scripts em `scripts/`. Consulte:
+- Documentação Pessoa A: [store-docs-a](https://github.com/Microserv-1/store-docs-a) (`docs/site`)
+- Documentação Pessoa B: [store-docs-b](https://github.com/Microserv-1/store-docs-b) (`docs/site-b`)
 
 O deploy AWS cria recursos pagos e exige conta, permissões, revisão de região/custos e configuração de segredos. Nenhum template representa evidência de um deploy executado.
 
 ## Submódulos e autoria
 
 Após alterar um serviço, publique seu commit no repositório correspondente e então atualize o ponteiro neste repositório. `git submodule update --init --recursive` recupera os commits registrados. Mudanças locais dentro de submódulos não são incluídas automaticamente por um commit na raiz.
-
-Documentação individual e comum: [store-docs-a](https://github.com/Microserv-1/store-docs-a). Os contratos iniciais de Account/Auth/Gateway precisam ser confrontados com os enunciados oficiais, ainda não fornecidos.
-
-Resultados locais e vídeo técnico: [estado e evidências](docs/site/docs/status.md). Os commits e ponteiros dos submódulos foram publicados, e o clone recursivo direto do GitHub foi validado com acesso aos repositórios privados. O teste `scripts/verify-local-clone.py` também permite validar a estrutura usando URLs locais apenas no clone de verificação.
