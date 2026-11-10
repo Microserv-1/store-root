@@ -8,8 +8,11 @@ Invoke-Kubectl apply -f infra/k8s/namespace.yaml
 python scripts/k8s-secrets.py --context $Context --local-database
 if ($LASTEXITCODE -ne 0) { throw 'Secret provisioning failed' }
 Invoke-Kubectl apply -f infra/k8s/postgres-local.yaml
+Invoke-Kubectl apply -f infra/k8s/dependencies-b.yaml
 Invoke-Kubectl rollout status deployment/postgres -n store --timeout=180s
-foreach ($Service in 'account','auth','gateway') {
+Invoke-Kubectl rollout status deployment/redis -n store --timeout=180s
+Invoke-Kubectl rollout status deployment/rabbitmq -n store --timeout=180s
+foreach ($Service in 'account','auth','product','exchange','order','gateway') {
     Invoke-Kubectl apply -f "api/$Service/k8s/k8s.yaml"
     Invoke-Kubectl rollout status "deployment/$Service" -n store --timeout=180s
 }

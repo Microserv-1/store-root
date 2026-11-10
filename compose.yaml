@@ -16,6 +16,23 @@ services:
       timeout: 3s
       retries: 20
     networks: [backend]
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+    networks: [backend]
   account:
     image: microserv-store/account:local
     build: ./api/account
@@ -42,6 +59,57 @@ services:
     depends_on:
       account: {condition: service_healthy}
     networks: [backend]
+  product:
+    image: microserv-store/product:local
+    build: ./api/product
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql+psycopg://store:${POSTGRES_PASSWORD}@postgres:5432/accounts
+      REDIS_URL: redis://redis:6379/0
+      CACHE_TTL_SECONDS: '120'
+      CACHE_ENABLED: 'true'
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+  exchange:
+    image: microserv-store/exchange:local
+    build: ./api/exchange
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      EXCHANGE_CACHE_TTL_SECONDS: '60'
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+  order:
+    image: microserv-store/order:local
+    build: ./api/order
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql+psycopg://store:${POSTGRES_PASSWORD}@postgres:5432/accounts
+      PRODUCT_URL: http://product:8000
+      EXCHANGE_URL: http://exchange:8000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      ORDER_EVENTS_QUEUE: order.events
+    depends_on:
+      postgres: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      product: {condition: service_healthy}
+      exchange: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
   gateway:
     image: microserv-store/gateway:local
     build: ./api/gateway
@@ -53,7 +121,7 @@ services:
       ORDER_URL: http://order:8000
       EXCHANGE_URL: http://exchange:8000
     ports: ["127.0.0.1:${GATEWAY_PORT:-8080}:8000"]
-    depends_on: [account, auth]
+    depends_on: [account, auth, product, order, exchange]
     networks: [backend]
   prometheus:
     image: prom/prometheus:v3.4.0
