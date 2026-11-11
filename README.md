@@ -1,5 +1,7 @@
 # Microserv Store
 
+> **Handoff de autoria:** os commits de A em Product e Order foram retirados dos branches remotos `main`, e os submódulos voltaram aos commits originais de B. As correções precisam ser implementadas e publicadas pela própria Pessoa B antes de repetir o aceite e validar Jenkins. Consulte [HANDOFF-PESSOA-B.md](HANDOFF-PESSOA-B.md), com patches completos, configuração e testes. Os relatórios anteriores se referem à versão corrigida antes desse rollback. O Compose foi parado, preservando os volumes.
+
 Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.
 
 Pessoa A: Account (Python/FastAPI), Auth (Java/Spring Boot), Gateway (Go), infraestrutura, observabilidade e balanceamento. Product, Order e Exchange Python da Pessoa B estão incorporados como submódulos, com Redis, RabbitMQ e bancos próprios na execução integrada.
