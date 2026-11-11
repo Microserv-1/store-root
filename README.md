@@ -2,7 +2,7 @@
 
 Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.
 
-Pessoa A: Account (Python/FastAPI), Auth (Java/Spring Boot), Gateway (Go), infraestrutura, observabilidade e balanceamento. Product, Order e Exchange são da Pessoa B e ainda não estão incluídos neste checkout.
+Pessoa A: Account (Python/FastAPI), Auth (Java/Spring Boot), Gateway (Go), infraestrutura, observabilidade e balanceamento. Product, Order e Exchange Python da Pessoa B estão incorporados como submódulos, com Redis, RabbitMQ e bancos próprios na execução integrada.
 
 ## Executar localmente
 
@@ -15,6 +15,17 @@ python scripts/setup-local.py
 docker compose up --build -d
 python tests/smoke.py
 ```
+
+Para o projeto completo, incluindo as entregas da Pessoa B:
+
+```powershell
+python scripts/setup-local.py
+docker compose -f compose.yaml -f compose.business.yaml up --build -d
+python tests/smoke.py
+python tests/business_integration.py
+```
+
+`tests/business_resilience.py` executa indisponibilidades controladas de Redis/RabbitMQ **locais** e os reinicia ao final. Ele não deve ser usado contra ambientes compartilhados. `setup-local.py` acrescenta segredos ausentes sem substituir os existentes.
 
 Gateway: http://localhost:8080. Apenas ele publica portas de aplicação. O PostgreSQL persiste no volume `account-data`; os segredos locais são gerados em `.env`, ignorado pelo Git.
 

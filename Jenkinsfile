@@ -18,17 +18,18 @@ pipeline {
     stage('Prepare isolated integration environment') {
       steps {
         sh 'python3 scripts/setup-local.py'
-        sh 'docker compose -p store-integration build'
+        sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml build'
       }
     }
     stage('Integration') {
       steps {
-        sh 'docker compose -p store-integration up -d'
+        sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml up -d'
         sh 'python3 tests/smoke.py'
+        sh 'python3 tests/business_integration.py'
       }
     }
   }
   post {
-    always { sh 'docker compose -p store-integration down -v' }
+    always { sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml down -v' }
   }
 }

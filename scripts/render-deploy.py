@@ -7,10 +7,17 @@ parser=argparse.ArgumentParser()
 parser.add_argument("--context",required=True)
 for service in ("account","auth","gateway"):
     parser.add_argument("--"+service+"-image",required=True)
+for service in ("product","order","exchange"):
+    parser.add_argument("--"+service+"-image")
 parser.add_argument("--apply",action="store_true",help="Apply after successful server-side dry-run")
 args=parser.parse_args()
+services=["account","auth","gateway"]
+if any(getattr(args,s+"_image") for s in ("product","order","exchange")):
+    if not all(getattr(args,s+"_image") for s in ("product","order","exchange")):
+        parser.error("Provide all three business images together")
+    services += ["product","exchange","order"]
 manifests=[]
-for service in ("account","auth","gateway"):
+for service in services:
     image=getattr(args,service+"_image")
     if not re.fullmatch(r"[a-z0-9][a-z0-9./_-]*:[a-f0-9]{40}",image):
         parser.error("Use a registry image with a full 40-character commit SHA tag")
@@ -23,7 +30,7 @@ base=["kubectl","--context",args.context,"apply","-f",str(output)]
 subprocess.run(base+["--dry-run=server"],check=True)
 if args.apply:
     subprocess.run(base,check=True)
-    for service in ("account","auth","gateway"):
+    for service in services:
         subprocess.run(["kubectl","--context",args.context,"-n","store","rollout","status",f"deployment/{service}","--timeout=180s"],check=True)
 else:
     print("Validated rendered deployment; use --apply to deploy")

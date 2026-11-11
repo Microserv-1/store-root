@@ -1,0 +1,90 @@
+# Defaults to B's Git submodules. BUSINESS_SOURCE_DIR may select an audited source snapshot for local validation.
+services:
+  product-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: product
+      POSTGRES_DB: products
+      POSTGRES_PASSWORD: ${PRODUCT_DB_PASSWORD:?Run scripts/setup-local.py}
+    volumes: [product-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U product -d products]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+  order-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orders
+      POSTGRES_DB: orders
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:?Run scripts/setup-local.py}
+    volumes: [order-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U orders -d orders]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+  redis:
+    image: redis:7-alpine
+    command: [sh, -c, 'exec redis-server --requirepass "$$REDIS_PASSWORD"']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run scripts/setup-local.py}
+    networks: [backend]
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    hostname: rabbitmq
+    user: '0:0'
+    entrypoint: [sh, /usr/local/bin/store-rabbit-entrypoint]
+    environment:
+      RABBITMQ_DEFAULT_USER: store
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Run scripts/setup-local.py}
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/entrypoint.sh:/usr/local/bin/store-rabbit-entrypoint:ro
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    networks: [backend]
+  product:
+    image: microserv-store/product:local
+    dns_opt: [timeout:1, attempts:1]
+    build: ${BUSINESS_SOURCE_DIR:-./api}/product
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql+psycopg://product:${PRODUCT_DB_PASSWORD}@product-db:5432/products
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CACHE_TTL_SECONDS: '120'
+    depends_on:
+      product-db: {condition: service_healthy}
+      redis: {condition: service_started}
+    networks: [backend]
+  order:
+    image: microserv-store/order:local
+    dns_opt: [timeout:1, attempts:1]
+    build: ${BUSINESS_SOURCE_DIR:-./api}/order
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql+psycopg://orders:${ORDER_DB_PASSWORD}@order-db:5432/orders
+      PRODUCT_URL: http://product:8000
+      EXCHANGE_URL: http://exchange:8000
+      RABBITMQ_URL: amqp://store:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2F
+    depends_on:
+      order-db: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      product: {condition: service_started}
+      exchange: {condition: service_started}
+    networks: [backend]
+  exchange:
+    image: microserv-store/exchange:local
+    build: ${BUSINESS_SOURCE_DIR:-./api}/exchange
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+    networks: [backend]
+volumes:
+  product-data: {}
+  order-data: {}
+  rabbit-data: {}
