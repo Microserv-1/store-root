@@ -108,19 +108,19 @@ diff --git a/README.md b/README.md
 index 5320078..e87b9c1 100644
 --- a/README.md
 +++ b/README.md
-@@ -17,6 +17,12 @@ ServiÃ§o de pedidos (`POST /orders`, `GET /orders`, `GET /orders/{id}`) em Pytho
- | `GET` | `/ready` | PÃºblico | ProntidÃ£o do banco e broker RabbitMQ |
- | `GET` | `/metrics` | PÃºblico (interno) | MÃ©tricas Prometheus |
+@@ -17,6 +17,12 @@ Serviço de pedidos (`POST /orders`, `GET /orders`, `GET /orders/{id}`) em Pytho
+ | `GET` | `/ready` | Público | Prontidão do banco e broker RabbitMQ |
+ | `GET` | `/metrics` | Público (interno) | Métricas Prometheus |
  
-+## SeguranÃ§a e entrega de eventos
++## Segurança e entrega de eventos
 +
-+O controle global `POST /orders/events/consumer` fica desabilitado por padrÃ£o (404). Para demonstraÃ§Ã£o local controlada, habilitar explicitamente `ENABLE_DEMO_CONTROLS=true`; nÃ£o habilitar em ambiente compartilhado com usuÃ¡rios reais. O replay de eventos continua restrito ao proprietÃ¡rio do pedido.
++O controle global `POST /orders/events/consumer` fica desabilitado por padrão (404). Para demonstração local controlada, habilitar explicitamente `ENABLE_DEMO_CONTROLS=true`; não habilitar em ambiente compartilhado com usuários reais. O replay de eventos continua restrito ao proprietário do pedido.
 +
-+A publicaÃ§Ã£o usa confirmaÃ§Ãµes do broker e `mandatory=True`. O consumidor confirma a entrega apenas apÃ³s concluir a transaÃ§Ã£o de notificaÃ§Ã£o; falhas de processamento devolvem a mensagem Ã  fila. O contrato Ã© de entrega pelo menos uma vez, com consumidor idempotente, nÃ£o de entrega exatamente uma vez.
++A publicação usa confirmações do broker e `mandatory=True`. O consumidor confirma a entrega apenas após concluir a transação de notificação; falhas de processamento devolvem a mensagem à fila. O contrato é de entrega pelo menos uma vez, com consumidor idempotente, não de entrega exatamente uma vez.
 +
- ## Regra de ConversÃ£o MonetÃ¡ria e Arredondamento
+ ## Regra de Conversão Monetária e Arredondamento
  
- - Todos os valores de pedidos e itens sÃ£o persistidos no PostgreSQL em **USD** (`Numeric(12, 2)`).
+ - Todos os valores de pedidos e itens são persistidos no PostgreSQL em **USD** (`Numeric(12, 2)`).
 diff --git a/app/main.py b/app/main.py
 index 55d34e5..298c04b 100644
 --- a/app/main.py
