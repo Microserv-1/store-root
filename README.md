@@ -42,6 +42,8 @@ Prometheus: http://localhost:9090. Grafana: http://localhost:3000, usuário `adm
 
 Jenkins local: [instalação, credenciais e execução dos jobs](docs/site/docs/jenkins.md). As imagens públicas usam `uyris/store-<serviço>:<SHA>` no Docker Hub. O parâmetro `DEPLOY` só deve ser habilitado depois de conferir o cluster associado à credencial `store-kubeconfig`.
 
+A [preparação completa do EKS](docs/site/docs/eks-preparation.md) inclui configuração dos seis serviços, RDS com três usuários/bancos, Redis/RabbitMQ, HTTPS, IAM/RBAC, agente Jenkins AWS, preflight, carga de negócio e rollback. `Jenkinsfile.eks` faz checkout real do GitHub e valida uma prévia por padrão, com deploy desabilitado. No EKS, usar esse job de release para preservar a configuração de certificados do banco.
+
 Cada serviço tem Dockerfile, Jenkinsfile e `k8s/k8s.yaml`. Infraestrutura compartilhada em `infra/`; scripts em `scripts/`. Consulte [execução e deploy](docs/site/docs/deploy.md), [contratos para B](docs/site/docs/contracts.md) e [estado das verificações](docs/site/docs/status.md).
 
 O deploy AWS cria recursos pagos e exige conta, permissões, revisão de região/custos e configuração de segredos. Nenhum template representa evidência de um deploy executado.
