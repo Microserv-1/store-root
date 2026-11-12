@@ -3,6 +3,7 @@ import argparse
 import base64
 import http.cookiejar
 import json
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -17,7 +18,7 @@ URL='http://127.0.0.1:8085'
 OPENER=urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 AUTH='Basic '+base64.b64encode(('admin:'+ENV['JENKINS_ADMIN_PASSWORD']).encode()).decode()
 ARTIFACTS=ROOT/'artifacts'/'jenkins'
-ARTIFACTS.mkdir(exist_ok=True)
+ARTIFACTS.mkdir(parents=True,exist_ok=True)
 
 def request(path,data=None,content_type='application/x-www-form-urlencoded',crumb=True):
     headers={'Authorization':AUTH}
@@ -119,9 +120,32 @@ def negative():
         request('/createItem?name=store-negative',config,'application/xml')
     run('negative')
 
+
+def summary():
+    results={}
+    for service in ['root','account','auth','gateway','product','order','exchange','negative']:
+        name='store-'+service
+        build=json.loads(request('/job/'+name+'/lastBuild/api/json'))
+        number=build['number']
+        console=request(f'/job/{name}/{number}/consoleText').decode()
+        (ARTIFACTS/f'{name}-{number}-console.txt').write_text(console,encoding='utf-8')
+        entry={key:build.get(key) for key in ['number','building','result','duration','url']}
+        commits=re.findall(r'Checking out Revision ([a-f0-9]{40})',console)
+        digests=re.findall(r'([a-f0-9]{40}): digest: (sha256:[a-f0-9]{64})',console)
+        entry.update(commit=commits[-1] if commits else None,
+                     published_image_digest=digests[-1][1] if digests else None,
+                     rollout_confirmed=f'deployment "{service}" successfully rolled out' in console)
+        if service=='negative':
+            entry['expected_failure_confirmed']=(build['result']=='FAILURE' and
+                all(f'Stage "{stage}" skipped due to earlier failure' in console for stage in ['Build','Publish','Deploy'])
+                and 'MUST_NOT_EXECUTE' not in console)
+        results[service]=entry
+    (ARTIFACTS/'summary.json').write_text(json.dumps(results,indent=2),encoding='utf-8')
+    print(json.dumps(results,indent=2))
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['wait','lint','mirrors','job','run','status','negative'])
+    parser.add_argument('action',choices=['wait','lint','mirrors','job','run','status','negative','summary'])
     parser.add_argument('--service',default='root',choices=['root','account','auth','gateway','product','order','exchange','negative'])
     parser.add_argument('--deploy',action='store_true',help='Explicitly enable the configured deployment target')
     args=parser.parse_args()

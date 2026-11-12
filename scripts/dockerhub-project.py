@@ -46,7 +46,7 @@ def create():
             raise RuntimeError('Existing private repository needs explicit review: '+name)
         results.append({'name':NAMESPACE+'/'+name,'public':True,'url':'https://hub.docker.com/r/'+NAMESPACE+'/'+name})
         print('Ready public repository: '+NAMESPACE+'/'+name)
-    target=ROOT/'artifacts'/'jenkins';target.mkdir(exist_ok=True)
+    target=ROOT/'artifacts'/'jenkins';target.mkdir(parents=True,exist_ok=True)
     (target/'dockerhub-repositories.json').write_text(json.dumps(results,indent=2))
 
 def jenkins_credential():
