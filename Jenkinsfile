@@ -17,6 +17,7 @@ pipeline {
     }
     stage('Prepare isolated integration environment') {
       steps {
+        sh 'mkdir -p artifacts && rm -f artifacts/business-integration.json artifacts/integration-services.log'
         sh 'python3 scripts/setup-local.py'
         sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml build'
       }
@@ -40,7 +41,8 @@ pipeline {
   }
   post {
     always {
-      archiveArtifacts artifacts: 'artifacts/business-integration.json', allowEmptyArchive: true
+      sh(returnStatus: true, script: 'mkdir -p artifacts; docker compose -p store-integration -f compose.yaml -f compose.business.yaml logs --no-color --tail=100 > artifacts/integration-services.log 2>&1')
+      archiveArtifacts artifacts: 'artifacts/business-integration.json,artifacts/integration-services.log', allowEmptyArchive: true
       script {
         if (env.STORE_JENKINS_CONTAINER_NETWORK == 'true') {
           sh(returnStatus: true, script: 'docker network disconnect store-integration_backend "$HOSTNAME"')
