@@ -1,0 +1,8 @@
+{
+  "controller_version": "v2.16.0",
+  "helm_chart_version": "1.16.0",
+  "chart_sha256": "5d98ceea11d5c582c59f0fce088e52c3c40a184538b660da22413f51cb440301",
+  "chart_urls": [
+    "https://aws.github.io/eks-charts/aws-load-balancer-controller-1.16.0.tgz"
+  ]
+}

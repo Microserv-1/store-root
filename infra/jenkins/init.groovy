@@ -18,7 +18,7 @@ instance.setNumExecutors(1)
 instance.setLabelString('docker-kubectl')
 instance.setSlaveAgentPort(-1)
 def credentials = SystemCredentialsProvider.getInstance()
-if (!credentials.credentials.any { it.id == 'github-read' }) {
+if (System.getenv('STORE_JENKINS_CONTAINER_NETWORK') == 'true' && !credentials.credentials.any { it.id == 'github-read' }) {
     credentials.credentials.add(new UsernamePasswordCredentialsImpl(CredentialsScope.GLOBAL,
         'github-read', 'Local SCM mirrors only; no GitHub token', 'local-scm', 'unused-local-scm'))
     credentials.save()

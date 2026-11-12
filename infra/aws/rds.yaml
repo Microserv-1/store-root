@@ -1,9 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Private PostgreSQL for Account in an existing EKS VPC
+Description: Private PostgreSQL for isolated Account Product Order databases in an EKS VPC
 Parameters:
   VpcId: {Type: 'AWS::EC2::VPC::Id'}
   PrivateSubnets: {Type: 'List<AWS::EC2::Subnet::Id>'}
   WorkerSecurityGroup: {Type: 'AWS::EC2::SecurityGroup::Id'}
+  DatabaseInstanceClass:
+    Type: String
+    Default: db.t4g.small
+    AllowedValues: [db.t4g.small, db.t4g.medium]
   DatabasePassword:
     Type: String
     NoEcho: true
@@ -32,11 +36,11 @@ Resources:
     UpdateReplacePolicy: Snapshot
     Properties:
       Engine: postgres
-      DBInstanceClass: db.t4g.micro
+      DBInstanceClass: !Ref DatabaseInstanceClass
       AllocatedStorage: '20'
       StorageType: gp3
       StorageEncrypted: true
-      DBName: accounts
+      DBName: store_admin
       MasterUsername: store
       MasterUserPassword: !Ref DatabasePassword
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
@@ -45,6 +49,8 @@ Resources:
       BackupRetentionPeriod: 1
       MultiAZ: false
       AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      Tags: [{Key: project, Value: microserv-store}]
 Outputs:
   DatabaseHost:
     Value: !GetAtt Database.Endpoint.Address

@@ -6,6 +6,7 @@ secrets/
 .tools/
 artifacts-*.log
 .venv/
+.venv-ops/
 __pycache__/
 .pytest_cache/
 *.pyc

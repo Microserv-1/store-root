@@ -1,0 +1,58 @@
+// Cloud release job: application overlays only. Operator bootstraps AWS/dependencies/secrets.
+pipeline {
+  agent { label 'docker-kubectl' }
+  options { timestamps(); disableConcurrentBuilds() }
+  parameters {
+    booleanParam(name: 'DEPLOY_EKS', defaultValue: false, description: 'False validates an offline example; true requires configured AWS target and operator bootstrap')
+    string(name: 'KUBE_CONTEXT', defaultValue: '', description: 'Explicit EKS context; checked against the AWS cluster endpoint')
+  }
+  stages {
+    stage('Checkout recursively from GitHub') {
+      steps {
+        checkout scm
+        withCredentials([gitUsernamePassword(credentialsId: 'github-read', gitToolName: 'Default')]) {
+          sh 'git submodule update --init --recursive'
+        }
+      }
+    }
+    stage('Prepare tools') {
+      steps {
+        sh '''
+          python3 -m venv .venv-ops
+          .venv-ops/bin/pip install -r requirements-ops.txt
+          aws --version
+          kubectl version --client
+        '''
+      }
+    }
+    stage('Render and validate release') {
+      steps {
+        script {
+          if (params.DEPLOY_EKS) {
+            if (!params.KUBE_CONTEXT.trim()) { error('Explicit KUBE_CONTEXT is required') }
+            withCredentials([file(credentialsId: 'eks-config', variable: 'EKS_CONFIG')]) {
+              sh '.venv-ops/bin/python scripts/prepare-eks.py render --config "$EKS_CONFIG"'
+            }
+          } else {
+            sh '.venv-ops/bin/python scripts/prepare-eks.py render --example'
+          }
+        }
+        sh '.venv-ops/bin/python scripts/eks-preflight.py'
+      }
+    }
+    stage('AWS preflight and deploy applications') {
+      when { expression { params.DEPLOY_EKS } }
+      steps {
+        withCredentials([file(credentialsId: 'eks-config', variable: 'EKS_CONFIG'), file(credentialsId: 'store-eks-kubeconfig', variable: 'KUBECONFIG')]) {
+          withEnv(["TARGET_CONTEXT=${params.KUBE_CONTEXT}"]) {
+            sh '''
+              .venv-ops/bin/python scripts/eks-preflight.py --cloud --config "$EKS_CONFIG" --cluster-context "$TARGET_CONTEXT"
+              .venv-ops/bin/python scripts/eks-apply.py apply --config "$EKS_CONFIG" --context "$TARGET_CONTEXT"
+            '''
+          }
+        }
+      }
+    }
+  }
+  post { always { archiveArtifacts artifacts: 'artifacts/eks/*.json,artifacts/eks/*.yaml', allowEmptyArchive: true } }
+}

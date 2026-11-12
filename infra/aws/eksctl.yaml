@@ -4,6 +4,7 @@ kind: ClusterConfig
 metadata:
   name: microserv-store
   region: us-east-1
+  version: '1.35'
   tags:
     project: microserv-store
     purpose: academic
@@ -14,11 +15,23 @@ vpc:
   clusterEndpoints:
     publicAccess: true
     privateAccess: true
+  # Documentation-only CIDR: render with the real operator CIDR before creating.
+  publicAccessCIDRs: [203.0.113.0/24]
 iam:
   withOIDC: true
+accessConfig:
+  authenticationMode: API_AND_CONFIG_MAP
+addons:
+  - name: vpc-cni
+  - name: coredns
+  - name: kube-proxy
+  - name: metrics-server
+  - name: aws-ebs-csi-driver
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicyV2
 managedNodeGroups:
   - name: application
-    instanceType: t3.medium
+    instanceType: t3.large
     desiredCapacity: 2
     minSize: 2
     maxSize: 4

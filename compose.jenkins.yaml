@@ -2,7 +2,10 @@ name: microserv-store-ci
 services:
   jenkins:
     image: microserv-store/jenkins-validation:local
-    build: ./infra/jenkins
+    build:
+      context: ./infra/jenkins
+      args:
+        KUBECTL_VERSION: v1.32.2
     # Local validation only: the Docker socket requires elevated access.
     user: '0:0'
     environment:

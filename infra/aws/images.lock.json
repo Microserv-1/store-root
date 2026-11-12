@@ -1,0 +1,32 @@
+{
+  "account": {
+    "commit": "7b61a3d265e0f8beaf11f9b0770ca9a6edc27cad",
+    "image": "uyris/store-account:7b61a3d265e0f8beaf11f9b0770ca9a6edc27cad@sha256:1c37183eb58d92d8c055769e54081a9a87c6c1278d1479e003aaf6bea201b3ac"
+  },
+  "auth": {
+    "commit": "d803717bcf09943028f2727cfa97a9515eb17e8d",
+    "image": "uyris/store-auth:d803717bcf09943028f2727cfa97a9515eb17e8d@sha256:33baabf8067ad04eb0a929a901f563b887f4ec5ed03f994054f9c628555a4845"
+  },
+  "gateway": {
+    "commit": "a3944171d6d008cd0c88027ab2a963558ee7d1da",
+    "image": "uyris/store-gateway:a3944171d6d008cd0c88027ab2a963558ee7d1da@sha256:4103fffbfcb05ea7d3a79134e16ae525f504aa5b0c3e8a7931e4ce72f9f41895"
+  },
+  "product": {
+    "commit": "c40bec1c96f786d11c89c021f7fb891af2bd048c",
+    "image": "uyris/store-product:c40bec1c96f786d11c89c021f7fb891af2bd048c@sha256:d2d2b48ff847808aced829d39ebf860053a1a7e67e594b2887798dafa9afc204"
+  },
+  "exchange": {
+    "commit": "ea580c5b6e8c6eb6f552ac56390764a2f215c76f",
+    "image": "uyris/store-exchange:ea580c5b6e8c6eb6f552ac56390764a2f215c76f@sha256:3234706c2a9a58f5169d54b6e4a18e58fc1a9d22c401b470df62ce68fa3fb1af"
+  },
+  "order": {
+    "commit": "a97fe5583e8e0e3615aab062a570bd2263b57089",
+    "image": "uyris/store-order:a97fe5583e8e0e3615aab062a570bd2263b57089@sha256:6052e6677075acf367b464213ccec491b119c740c536ecd2c6304a59f2b7e788"
+  },
+  "redis": {
+    "image": "redis@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99"
+  },
+  "rabbitmq": {
+    "image": "rabbitmq@sha256:8425b8435b0203e87292cf1a4a7e5f8108c610bbd8217f8cc952f43628b24987"
+  }
+}

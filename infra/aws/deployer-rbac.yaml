@@ -1,0 +1,68 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: store-deployer, namespace: store}
+rules:
+- apiGroups: ['']
+  resources: [services, configmaps]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [autoscaling]
+  resources: [horizontalpodautoscalers]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: [policy]
+  resources: [poddisruptionbudgets]
+  verbs: [get, list, watch, create, update, patch]
+- apiGroups: ['']
+  resources: [pods, events, pods/log]
+  verbs: [get, list, watch]
+- apiGroups: [apps]
+  resources: [replicasets]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: store-deployer, namespace: store}
+subjects:
+- {kind: Group, name: store-deployers, apiGroup: rbac.authorization.k8s.io}
+roleRef: {kind: Role, name: store-deployer, apiGroup: rbac.authorization.k8s.io}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: store-ci-observer}
+rules:
+- apiGroups: ['']
+  resources: [nodes]
+  verbs: [get, list]
+- apiGroups: [storage.k8s.io]
+  resources: [csidrivers]
+  resourceNames: [ebs.csi.aws.com]
+  verbs: [get]
+- apiGroups: [apiregistration.k8s.io]
+  resources: [apiservices]
+  resourceNames: [v1beta1.metrics.k8s.io]
+  verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: store-ci-observer}
+subjects:
+- {kind: Group, name: store-deployers, apiGroup: rbac.authorization.k8s.io}
+roleRef: {kind: ClusterRole, name: store-ci-observer, apiGroup: rbac.authorization.k8s.io}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: store-ci-controller-status, namespace: kube-system}
+rules:
+- apiGroups: [apps]
+  resources: [deployments]
+  resourceNames: [aws-load-balancer-controller]
+  verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: store-ci-controller-status, namespace: kube-system}
+subjects:
+- {kind: Group, name: store-deployers, apiGroup: rbac.authorization.k8s.io}
+roleRef: {kind: Role, name: store-ci-controller-status, apiGroup: rbac.authorization.k8s.io}
