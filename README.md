@@ -1,6 +1,6 @@
 # Microserv Store
 
-> **Atualização de 12/11:** a Pessoa B publicou as correções do handoff com sua própria autoria. Os novos commits estão sendo revalidados na integração e no Jenkins. Consulte [HANDOFF-PESSOA-B.md](HANDOFF-PESSOA-B.md) para o roteiro original e os relatórios para as versões efetivamente testadas. Não criar commits da Pessoa A nos repositórios de B.
+> **Atualização de 12/11:** as correções publicadas por B passaram no aceite de 40 testes em Compose e Kind. Os seis pipelines Jenkins executaram teste, build, publicação no Docker Hub e deploy no Kind; o job raiz nº 3 passou na integração. Consulte [estado e evidências](docs/site/docs/status.md) para commits, digests e limitações, e [HANDOFF-PESSOA-B.md](HANDOFF-PESSOA-B.md) para o roteiro original. O deploy EKS ainda não foi executado. Não criar commits da Pessoa A nos repositórios de B.
 
 Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.
 
