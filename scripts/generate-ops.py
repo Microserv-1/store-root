@@ -129,7 +129,7 @@ spec:
     (base / "k8s").mkdir(exist_ok=True)
     (base / "k8s/k8s.yaml").write_text(manifest)
     # Real secrets are provisioned once, independently from service pipelines.
-    test = {"account": "docker run --rm -v \"$PWD:/src\" -w /src python:3.12-slim sh -c 'pip install -r requirements.txt && python -m pytest -q'",
+    test = {"account": "\ndocker run --rm -v \"$PWD:/src:ro\" -e PYTHONPATH=/src -w /tmp python:3.12-slim sh -ec '\n  pip install -r /src/requirements.txt\n  python -m pytest /src/tests -q -p no:cacheprovider\n'\n",
             "auth": "docker run --rm -v \"$PWD:/src\" -w /src maven:3.9-eclipse-temurin-21 mvn -B verify",
             "gateway": "docker run --rm -v \"$PWD:/src\" -w /src golang:1.24-bookworm go test ./..."}[service]
     jenkins = '''pipeline {

@@ -24,12 +24,28 @@ pipeline {
     stage('Integration') {
       steps {
         sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml up -d'
-        sh 'python3 tests/smoke.py'
-        sh 'python3 tests/business_integration.py'
+        script {
+          def endpoint = env.BASE_URL
+          if (env.STORE_JENKINS_CONTAINER_NETWORK == 'true') {
+            sh 'docker network connect store-integration_backend "$HOSTNAME"'
+            endpoint = 'http://store-integration-gateway-1:8000'
+          }
+          withEnv(["BASE_URL=${endpoint}"]) {
+            sh 'python3 tests/smoke.py'
+            sh 'python3 tests/business_integration.py'
+          }
+        }
       }
     }
   }
   post {
-    always { sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml down -v' }
+    always {
+      script {
+        if (env.STORE_JENKINS_CONTAINER_NETWORK == 'true') {
+          sh(returnStatus: true, script: 'docker network disconnect store-integration_backend "$HOSTNAME"')
+        }
+      }
+      sh 'docker compose -p store-integration -f compose.yaml -f compose.business.yaml down -v'
+    }
   }
 }

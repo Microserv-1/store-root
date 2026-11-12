@@ -1,0 +1,28 @@
+name: microserv-store-ci
+services:
+  jenkins:
+    image: microserv-store/jenkins-validation:local
+    build: ./infra/jenkins
+    # Local validation only: the Docker socket requires elevated access.
+    user: '0:0'
+    environment:
+      JENKINS_HOME: ${JENKINS_HOME_PATH:?Run scripts/setup-jenkins-local.py}
+      GIT_CONFIG_GLOBAL: ${JENKINS_HOME_PATH}/.gitconfig
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?Run scripts/setup-jenkins-local.py}
+      STORE_JENKINS_CONTAINER_NETWORK: 'true'
+      JAVA_OPTS: '-Xmx512m -Djenkins.install.runSetupWizard=false -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true'
+    ports: ['127.0.0.1:8085:8080']
+    volumes:
+      - type: volume
+        source: jenkins-home
+        target: ${JENKINS_HOME_PATH}
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8080/login]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+volumes:
+  jenkins-home:
+    external: true
+    name: microserv-store-jenkins-home

@@ -1,6 +1,6 @@
 # Microserv Store
 
-> **Handoff de autoria:** os commits de A em Product e Order foram retirados dos branches remotos `main`, e os submódulos voltaram aos commits originais de B. As correções precisam ser implementadas e publicadas pela própria Pessoa B antes de repetir o aceite e validar Jenkins. Consulte [HANDOFF-PESSOA-B.md](HANDOFF-PESSOA-B.md), com patches completos, configuração e testes. Os relatórios anteriores se referem à versão corrigida antes desse rollback. O Compose foi parado, preservando os volumes.
+> **Atualização de 12/11:** a Pessoa B publicou as correções do handoff com sua própria autoria. Os novos commits estão sendo revalidados na integração e no Jenkins. Consulte [HANDOFF-PESSOA-B.md](HANDOFF-PESSOA-B.md) para o roteiro original e os relatórios para as versões efetivamente testadas. Não criar commits da Pessoa A nos repositórios de B.
 
 Projeto acadêmico de Platforms, Microservices, DevOps and APIs — 2026.
 
