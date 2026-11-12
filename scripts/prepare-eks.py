@@ -16,14 +16,16 @@ ROOT=Path(__file__).resolve().parents[1]
 SERVICES=['account','auth','gateway','product','exchange','order']
 
 
-def load_config(path,example=False):
+def load_config(path,example=False,cluster_only=False):
     config=json.loads(Path(path).read_text(encoding='utf-8-sig'))
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,39}',config['cluster']):raise ValueError('Invalid cluster name')
     if not re.fullmatch(r'[a-z]{2}-[a-z]+-\d',config['region']):raise ValueError('Invalid AWS region')
     if not re.fullmatch(r'\d{12}',config['account_id']):raise ValueError('Invalid account ID')
-    if not re.fullmatch(r'(?=.{1,253}$)[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}',config['domain']):raise ValueError('Invalid domain')
-    certificate=f"arn:aws:acm:{config['region']}:{config['account_id']}:certificate/"
-    if not re.fullmatch(re.escape(certificate)+r'[a-f0-9-]{36}',config['certificate_arn']):raise ValueError('Certificate region/account/ID mismatch')
+    if not example and config['account_id']=='000000000000':raise ValueError('Replace the example AWS account ID')
+    if config['kubernetes_version']!='1.35':raise ValueError('Revalidate manifests and kubectl before changing pinned Kubernetes 1.35')
+    if config['node_instance_type'] not in ['t3.large','t3.xlarge'] or not 2<=config['nodes']<=4:
+        raise ValueError('Reviewed worker bounds are 2..4 t3.large/t3.xlarge nodes')
+    if config['rds_instance_class'] not in ['db.t4g.small','db.t4g.medium']:raise ValueError('Unreviewed database instance class')
     if len(config['availability_zones'])!=2 or any(not z.startswith(config['region']) for z in config['availability_zones']):
         raise ValueError('Choose two availability zones in the configured region')
     if not config['admin_cidrs']:raise ValueError('Explicit operator CIDR is required')
@@ -31,16 +33,16 @@ def load_config(path,example=False):
         network=ipaddress.ip_network(cidr,strict=True)
         if not example and (not network.network_address.is_global or network.prefixlen<24):
             raise ValueError('Use narrow real public operator CIDRs, never a documentation CIDR or 0.0.0.0/0')
+    if cluster_only:return config
+    if not re.fullmatch(r'(?=.{1,253}$)[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}',config['domain']):raise ValueError('Invalid domain')
+    certificate=f"arn:aws:acm:{config['region']}:{config['account_id']}:certificate/"
+    if not re.fullmatch(re.escape(certificate)+r'[a-f0-9-]{36}',config['certificate_arn']):raise ValueError('Certificate region/account/ID mismatch')
     if len(config['public_subnets'])<2 or len(set(config['public_subnets']))!=len(config['public_subnets']):
         raise ValueError('Two different public subnets are required')
     if any(not re.fullmatch(r'subnet-[a-f0-9]{8,17}',s) for s in config['public_subnets']):raise ValueError('Invalid subnet ID')
     if not example and (config['account_id']=='000000000000' or config['domain'].endswith('example.com') or
                         any(s.startswith('subnet-0000') for s in config['public_subnets'])):
         raise ValueError('Replace example account, domain, certificate and subnets before preparing a real release')
-    if config['kubernetes_version']!='1.35':raise ValueError('Revalidate manifests and kubectl before changing pinned Kubernetes 1.35')
-    if config['node_instance_type'] not in ['t3.large','t3.xlarge'] or not 2<=config['nodes']<=4:
-        raise ValueError('Reviewed worker bounds are 2..4 t3.large/t3.xlarge nodes')
-    if config['rds_instance_class'] not in ['db.t4g.small','db.t4g.medium']:raise ValueError('Unreviewed database instance class')
     return config
 
 
@@ -107,6 +109,15 @@ def dependencies(lock,storage_class='store-gp3'):
     return items
 
 
+def render_cluster(config,output='artifacts/eks'):
+    out=ROOT/output;out.mkdir(parents=True,exist_ok=True)
+    cluster=yaml.safe_load((ROOT/'infra/aws/eksctl.yaml').read_text())
+    cluster['metadata'].update(name=config['cluster'],region=config['region'],version=config['kubernetes_version'])
+    cluster['availabilityZones']=config['availability_zones'];cluster['vpc']['publicAccessCIDRs']=config['admin_cidrs']
+    cluster['managedNodeGroups'][0].update(instanceType=config['node_instance_type'],desiredCapacity=config['nodes'],minSize=config['nodes'])
+    (out/'eksctl.rendered.yaml').write_text(yaml.safe_dump(cluster,sort_keys=False))
+
+
 def render(config,example=False,output='artifacts/eks'):
     lock=json.loads((ROOT/'infra/aws/images.lock.json').read_text())
     ca=(ROOT/'infra/aws/rds-ca-bundle.pem').read_text()
@@ -157,11 +168,7 @@ def render(config,example=False,output='artifacts/eks'):
              'volumeMounts':[{'name':'code','mountPath':'/bootstrap','readOnly':True}]}],
            'volumes':[{'name':'code','configMap':{'name':'rds-bootstrap-code'}}]}}}}]
     out=ROOT/output;out.mkdir(parents=True,exist_ok=True)
-    cluster=yaml.safe_load((ROOT/'infra/aws/eksctl.yaml').read_text())
-    cluster['metadata'].update(name=config['cluster'],region=config['region'],version=config['kubernetes_version'])
-    cluster['availabilityZones']=config['availability_zones'];cluster['vpc']['publicAccessCIDRs']=config['admin_cidrs']
-    cluster['managedNodeGroups'][0].update(instanceType=config['node_instance_type'],desiredCapacity=config['nodes'],minSize=config['nodes'])
-    (out/'eksctl.rendered.yaml').write_text(yaml.safe_dump(cluster,sort_keys=False))
+    render_cluster(config,output)
     for filename,resources in [('release.json',items),('applications.json',applications),
                                ('foundation.json',foundation),('bootstrap.json',bootstrap)]:
         (out/filename).write_text(json.dumps({'apiVersion':'v1','kind':'List','items':resources},indent=2)+'\n')
@@ -186,10 +193,13 @@ def render(config,example=False,output='artifacts/eks'):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['lock','render'])
+    parser.add_argument('action',choices=['lock','cluster','render'])
     parser.add_argument('--config',default='infra/aws/deploy.example.json')
     parser.add_argument('--example',action='store_true')
     parser.add_argument('--output',default='artifacts/eks')
     args=parser.parse_args()
     if args.action=='lock':lock_images()
+    elif args.action=='cluster':
+        render_cluster(load_config(args.config,args.example,cluster_only=True),args.output)
+        print('Rendered cluster configuration only; no resources created')
     else:render(load_config(args.config,args.example),args.example,args.output)

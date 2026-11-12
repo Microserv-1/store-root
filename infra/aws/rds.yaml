@@ -8,6 +8,10 @@ Parameters:
     Type: String
     Default: db.t4g.small
     AllowedValues: [db.t4g.small, db.t4g.medium]
+  DatabaseEngineVersion:
+    Type: String
+    AllowedPattern: '16\.[0-9]+'
+    Description: Available PostgreSQL 16 minor resolved in the target region before provisioning
   DatabasePassword:
     Type: String
     NoEcho: true
@@ -36,6 +40,7 @@ Resources:
     UpdateReplacePolicy: Snapshot
     Properties:
       Engine: postgres
+      EngineVersion: !Ref DatabaseEngineVersion
       DBInstanceClass: !Ref DatabaseInstanceClass
       AllocatedStorage: '20'
       StorageType: gp3

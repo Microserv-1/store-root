@@ -27,6 +27,7 @@ pipeline {
     }
     stage('Render and validate release') {
       steps {
+        sh '.venv-ops/bin/python -m unittest discover -s tests -p test_eks_preparation.py'
         script {
           if (params.DEPLOY_EKS) {
             if (!params.KUBE_CONTEXT.trim()) { error('Explicit KUBE_CONTEXT is required') }

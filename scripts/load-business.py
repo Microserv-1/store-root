@@ -44,7 +44,7 @@ def main():
         hdr={'Content-Type':'application/json',**(headers or {})}
         if token:hdr['Authorization']='Bearer '+token
         req=urllib.request.Request(base+path,data=json.dumps(payload).encode() if payload is not None else None,headers=hdr,method=method)
-        begin=time.monotonic();status=0;success=False;problem=None;body=None;cache=None
+        begin=time.perf_counter();status=0;success=False;problem=None;body=None;cache=None
         try:
             try:response=opener.open(req,timeout=15)
             except urllib.error.HTTPError as exc:response=exc
@@ -54,7 +54,7 @@ def main():
                 success=status==expected and (validate(body) if validate else True)
                 if not success:problem='UnexpectedStatusOrPayload'
         except (OSError,ValueError,KeyError,TypeError) as exc:problem=type(exc).__name__
-        duration=(time.monotonic()-begin)*1000
+        duration=(time.perf_counter()-begin)*1000
         if label:
             with mutex:rows.append((label,status,duration,success,problem,cache))
         elif not success:
@@ -78,11 +78,12 @@ def main():
     product=request('POST','/products',credentials[0],{'name':'Load '+run_id,'price':3.25,'unit':'item'},expected=201)
     product_id=product['id'];product_path='/products/'+product_id
     request('GET',product_path,credentials[0])
-    before=snapshot();started=time.monotonic();deadline=started+args.duration
+    request('GET','/products',credentials[0])
+    before=snapshot();started=time.perf_counter();deadline=started+args.duration
 
     def worker(token):
         orders=[];cursor=0
-        while time.monotonic()<deadline:
+        while time.perf_counter()<deadline:
             if args.scenario in ['products','business']:
                 request('GET',product_path,token,label='GET product',headers=cache_headers,
                         validate=lambda data:data['id']==product_id and Decimal(str(data['price']))==Decimal('3.25'))
@@ -106,10 +107,10 @@ def main():
 
     try:
         with ThreadPoolExecutor(max_workers=args.users) as pool:list(pool.map(worker,credentials))
+        elapsed=time.perf_counter()-started
     finally:
         # This API has no order/account DELETE: use a dedicated test database for prolonged runs.
         request('DELETE',product_path,credentials[0],expected=204)
-    elapsed=time.monotonic()-started
 
     def metrics(data):
         samples=sorted(r[2] for r in data)

@@ -26,8 +26,12 @@ def clean(resource):
 
 
 def validate_resources(resources,allowed):
+    services={'account','auth','gateway','product','order','exchange'}
     for resource in resources:
         key=(resource['kind'],resource['metadata']['name'])
+        permitted=(resource['kind'] in {'Deployment','Service','HorizontalPodAutoscaler','PodDisruptionBudget'} and key[1] in services) or (
+            resource['kind']=='ConfigMap' and key[1] in {'store-rds-ca',*(service+'-config' for service in services)})
+        if not permitted:raise ValueError('Only application workload/configuration resources may be released by CI')
         if key not in allowed or resource['metadata'].get('namespace')!='store':
             raise ValueError('Resource is outside the reviewed application release')
 

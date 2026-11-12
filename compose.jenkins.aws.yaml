@@ -1,0 +1,32 @@
+# Dedicated EC2/agent host. No AWS resources are provisioned by this Compose file.
+name: microserv-store-ci-aws
+services:
+  jenkins:
+    image: microserv-store/jenkins-eks:local
+    build:
+      context: ./infra/jenkins
+      args: {KUBECTL_VERSION: v1.35.0}
+    user: '0:0'
+    environment:
+      JENKINS_HOME: ${JENKINS_HOME_PATH:?Run scripts/setup-jenkins-local.py --aws}
+      GIT_CONFIG_GLOBAL: ${JENKINS_HOME_PATH}/.gitconfig
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?Run scripts/setup-jenkins-local.py --aws}
+      STORE_JENKINS_CONTAINER_NETWORK: 'false'
+      JAVA_OPTS: '-Xmx512m -Djenkins.install.runSetupWizard=false'
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+    ports: ['127.0.0.1:8086:8080']
+    volumes:
+      - type: volume
+        source: jenkins-aws-home
+        target: ${JENKINS_HOME_PATH}
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8080/login]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+volumes:
+  jenkins-aws-home:
+    external: true
+    name: microserv-store-jenkins-aws-home

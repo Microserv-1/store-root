@@ -22,7 +22,7 @@ Resources:
                 Action: eks:DescribeCluster
                 Resource: !Sub 'arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}'
               - Effect: Allow
-                Action: [eks:DescribeClusterVersions, ec2:DescribeSubnets]
+                Action: [eks:DescribeClusterVersions, ec2:DescribeSubnets, ec2:DescribeRouteTables]
                 Resource: '*'
                 Condition:
                   StringEquals:

@@ -82,6 +82,13 @@ def cloud(config,context=None):
     subnets=aws('ec2','describe-subnets','--subnet-ids',*config['public_subnets'])['Subnets']
     if len({s['VpcId'] for s in subnets})!=1 or len({s['AvailabilityZone'] for s in subnets})<2:
         raise ValueError('Load balancer subnets must share the EKS VPC and span two AZs')
+    tables=aws('ec2','describe-route-tables','--filters','Name=vpc-id,Values='+subnets[0]['VpcId'])['RouteTables']
+    for subnet in subnets:
+        explicit=[table for table in tables if any(a.get('SubnetId')==subnet['SubnetId'] for a in table.get('Associations',[]))]
+        selected=explicit or [table for table in tables if any(a.get('Main') for a in table.get('Associations',[]))]
+        if not selected or not any(route.get('DestinationCidrBlock')=='0.0.0.0/0' and route.get('State')=='active' and
+                route.get('GatewayId','').startswith('igw-') for route in selected[0].get('Routes',[])):
+            raise ValueError('Internet-facing ALB subnet lacks an active default route to an Internet Gateway')
     result={'account':identity['Account'],'caller_arn':identity['Arn'],'kubernetes_version':config['kubernetes_version'],
             'certificate_status':certificate['Status'],'subnet_vpc':subnets[0]['VpcId'],
             'note':'Read-only AWS checks; this does not prove provisioning or workload health'}
