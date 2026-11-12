@@ -40,6 +40,7 @@ pipeline {
   }
   post {
     always {
+      archiveArtifacts artifacts: 'artifacts/business-integration.json', allowEmptyArchive: true
       script {
         if (env.STORE_JENKINS_CONTAINER_NETWORK == 'true') {
           sh(returnStatus: true, script: 'docker network disconnect store-integration_backend "$HOSTNAME"')

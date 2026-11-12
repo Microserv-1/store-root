@@ -40,6 +40,8 @@ Prometheus: http://localhost:9090. Grafana: http://localhost:3000, usuário `adm
 
 ## Kubernetes e deploy
 
+Jenkins local: [instalação, credenciais e execução dos jobs](docs/site/docs/jenkins.md). As imagens públicas usam `uyris/store-<serviço>:<SHA>` no Docker Hub. O parâmetro `DEPLOY` só deve ser habilitado depois de conferir o cluster associado à credencial `store-kubeconfig`.
+
 Cada serviço tem Dockerfile, Jenkinsfile e `k8s/k8s.yaml`. Infraestrutura compartilhada em `infra/`; scripts em `scripts/`. Consulte [execução e deploy](docs/site/docs/deploy.md), [contratos para B](docs/site/docs/contracts.md) e [estado das verificações](docs/site/docs/status.md).
 
 O deploy AWS cria recursos pagos e exige conta, permissões, revisão de região/custos e configuração de segredos. Nenhum template representa evidência de um deploy executado.

@@ -9,7 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import xml.sax.saxutils
+from xml.sax.saxutils import escape as escape_xml
 
 ROOT=Path(__file__).resolve().parents[1]
 ENV=dict(line.split('=',1) for line in (ROOT/'.env.jenkins').read_text().splitlines() if '=' in line)
@@ -43,7 +43,7 @@ def lint():
     for service in ['root','account','auth','gateway','product','order','exchange']:
         path=ROOT/'Jenkinsfile' if service=='root' else ROOT/'api'/service/'Jenkinsfile'
         boundary='StorePipelineValidationBoundary'
-        body=(f'--{boundary}\r\nContent-Disposition: form-data; name="jenkinsfile"; filename="Jenkinsfile"\r\nContent-Type: text/plain\r\n\r\n').encode()+path.read_bytes()+f'\r\n--{boundary}--\r\n'.encode()
+        body=(f'--{boundary}\r\nContent-Disposition: form-data; name="jenkinsfile"\r\n\r\n').encode()+path.read_bytes()+f'\r\n--{boundary}--\r\n'.encode()
         result=request('/pipeline-model-converter/validate',body,'multipart/form-data; boundary='+boundary).decode()
         results[service]=result.strip()
         print(service+': '+result.strip())
@@ -69,17 +69,23 @@ def mirrors():
 def job(service):
     name='store-'+service
     repository='file://'+ENV['JENKINS_HOME_PATH']+'/repos/store-'+service+'.git'
-    escape=xml.sax.saxutils.escape
-    xml=f'''<flow-definition plugin="workflow-job"><description>Local validation using an exact committed SCM mirror. Does not prove Docker Hub publication.</description><keepDependencies>false</keepDependencies><properties/><definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps"><scm class="hudson.plugins.git.GitSCM" plugin="git"><configVersion>2</configVersion><userRemoteConfigs><hudson.plugins.git.UserRemoteConfig><url>{escape(repository)}</url></hudson.plugins.git.UserRemoteConfig></userRemoteConfigs><branches><hudson.plugins.git.BranchSpec><name>*/main</name></hudson.plugins.git.BranchSpec></branches><doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations><extensions/></scm><scriptPath>Jenkinsfile</scriptPath><lightweight>false</lightweight></definition><triggers/><disabled>false</disabled></flow-definition>'''.encode()
+    escape=escape_xml
+    xml=f'''<flow-definition plugin="workflow-job"><description>Local validation using exact committed SCM mirrors. Service jobs publish to the authorized uyris Docker Hub namespace. Optional deploy targets only the configured kubeconfig.</description><keepDependencies>false</keepDependencies><properties/><definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps"><scm class="hudson.plugins.git.GitSCM" plugin="git"><configVersion>2</configVersion><userRemoteConfigs><hudson.plugins.git.UserRemoteConfig><url>{escape(repository)}</url></hudson.plugins.git.UserRemoteConfig></userRemoteConfigs><branches><hudson.plugins.git.BranchSpec><name>*/main</name></hudson.plugins.git.BranchSpec></branches><doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations><extensions/></scm><scriptPath>Jenkinsfile</scriptPath><lightweight>false</lightweight></definition><triggers/><disabled>false</disabled></flow-definition>'''.encode()
+    if service!='root':
+        parameters='''<properties><hudson.model.ParametersDefinitionProperty><parameterDefinitions>
+          <hudson.model.StringParameterDefinition><name>DOCKERHUB_NAMESPACE</name><defaultValue>uyris</defaultValue></hudson.model.StringParameterDefinition>
+          <hudson.model.BooleanParameterDefinition><name>DEPLOY</name><defaultValue>false</defaultValue></hudson.model.BooleanParameterDefinition>
+        </parameterDefinitions></hudson.model.ParametersDefinitionProperty></properties>'''
+        xml=xml.replace(b'<properties/>',parameters.encode())
     try:request('/job/'+name+'/config.xml',xml,'application/xml')
     except urllib.error.HTTPError as err:
         if err.code!=404:raise
         request('/createItem?name='+name,xml,'application/xml')
     print('Configured '+name)
 
-def run(service):
+def run(service,deploy=False):
     name='store-'+service
-    suffix='/build' if service=='root' else '/buildWithParameters?'+urllib.parse.urlencode({'DOCKERHUB_NAMESPACE':'local-validation','DEPLOY':'false'})
+    suffix='/build' if service in ('root','negative') else '/buildWithParameters?'+urllib.parse.urlencode({'DOCKERHUB_NAMESPACE':'uyris','DEPLOY':str(deploy).lower()})
     request('/job/'+name+suffix,b'')
     print('Queued '+name)
 
@@ -91,9 +97,34 @@ def status(service):
     (ARTIFACTS/(name+'-console.txt')).write_bytes(request('/job/'+name+'/lastBuild/consoleText'))
     print(json.dumps(safe))
 
-parser=argparse.ArgumentParser()
-parser.add_argument('action',choices=['wait','lint','mirrors','job','run','status'])
-parser.add_argument('--service',default='root',choices=['root','account','auth','gateway','product','order','exchange'])
-args=parser.parse_args()
-if args.action in ('job','run','status'):globals()[args.action](args.service)
-else:globals()[args.action]()
+def negative():
+    # This dedicated validation job creates no commits and changes no service repository.
+    script="""pipeline {
+      agent { label 'docker-kubectl' }
+      stages {
+        stage('Test') { steps { sh '''
+          python3 -c 'assert 1 == 2'
+        ''' } }
+        stage('Build') { steps { echo 'MUST_NOT_EXECUTE' } }
+        stage('Publish') { steps { echo 'MUST_NOT_EXECUTE' } }
+        stage('Deploy') { steps { echo 'MUST_NOT_EXECUTE' } }
+      }
+    }"""
+    config=('<flow-definition><description>Expected failure: assert 1 == 2; later stages must be skipped.</description>'
+      '<definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition"><script>'+escape_xml(script)+
+      '</script><sandbox>true</sandbox></definition><disabled>false</disabled></flow-definition>').encode()
+    try:request('/job/store-negative/config.xml',config,'application/xml')
+    except urllib.error.HTTPError as err:
+        if err.code!=404:raise
+        request('/createItem?name=store-negative',config,'application/xml')
+    run('negative')
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser()
+    parser.add_argument('action',choices=['wait','lint','mirrors','job','run','status','negative'])
+    parser.add_argument('--service',default='root',choices=['root','account','auth','gateway','product','order','exchange','negative'])
+    parser.add_argument('--deploy',action='store_true',help='Explicitly enable the configured deployment target')
+    args=parser.parse_args()
+    if args.action=='run':run(args.service,args.deploy)
+    elif args.action in ('job','status'):globals()[args.action](args.service)
+    else:globals()[args.action]()
