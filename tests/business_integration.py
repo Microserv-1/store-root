@@ -58,7 +58,10 @@ def main():
     expect(200,bypass,"cache bypass through Go gateway")
     assert bypass[2].get("X-Cache")=="BYPASS",bypass[2]
     stats=expect(200,call("GET","/products/cache/stats",token=a),"real Redis connection")
-    assert stats["redis_connected"] is True and stats["hits"]>=1 and stats["bypasses"]>=1,stats
+    # Counters belong to the answering process; Service load balancing may route
+    # HIT, BYPASS and this stats call to different replicas. Their response headers
+    # above prove the behavior without requiring affinity to a single Product pod.
+    assert stats["redis_connected"] is True and stats["cache_enabled"] is True,stats
     collection=expect(200,call("GET","/products",token=a),"list products")
     assert {p1["id"],p2["id"]}.issubset({p["id"] for p in collection})
     bad={"items":[{"idProduct":str(uuid.uuid4()),"quantity":1}]}
