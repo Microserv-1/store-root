@@ -42,6 +42,18 @@ class PreparationGuards(unittest.TestCase):
     def test_unrestricted_operator_access_is_rejected(self):
         with self.assertRaises(ValueError):self.load(self.config(admin_cidrs=['0.0.0.0/0']))
 
+    def test_workers_too_small_for_measured_workload_are_rejected(self):
+        with self.assertRaises(ValueError):self.load(self.config(node_instance_type='t3.small'))
+        self.load(self.config(node_instance_type='t3a.medium'))
+
+    def test_rendered_worker_ceiling_does_not_exceed_reviewed_count(self):
+        with tempfile.TemporaryDirectory() as temp:
+            prepare.render_cluster(self.load(self.config(node_instance_type='t3a.medium')),output=temp)
+            import yaml
+            group=yaml.safe_load((Path(temp)/'eksctl.rendered.yaml').read_text())['managedNodeGroups'][0]
+            self.assertEqual(group['instanceType'],'t3a.medium')
+            self.assertEqual(group['maxSize'],2)
+
     def test_certificate_in_another_account_is_rejected(self):
         with self.assertRaises(ValueError):self.load(self.config(certificate_arn='arn:aws:acm:us-east-1:999999999999:certificate/11111111-2222-3333-4444-555555555555'))
 

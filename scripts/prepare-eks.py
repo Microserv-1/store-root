@@ -23,8 +23,10 @@ def load_config(path,example=False,cluster_only=False):
     if not re.fullmatch(r'\d{12}',config['account_id']):raise ValueError('Invalid account ID')
     if not example and config['account_id']=='000000000000':raise ValueError('Replace the example AWS account ID')
     if config['kubernetes_version']!='1.35':raise ValueError('Revalidate manifests and kubectl before changing pinned Kubernetes 1.35')
-    if config['node_instance_type'] not in ['t3.large','t3.xlarge'] or not 2<=config['nodes']<=4:
-        raise ValueError('Reviewed worker bounds are 2..4 t3.large/t3.xlarge nodes')
+    if config['node_instance_type'] not in ['t3.medium','t3a.medium','t3.large','t3.xlarge'] or not 2<=config['nodes']<=4:
+        raise ValueError('Reviewed worker bounds require 2..4 x86 nodes with at least 4 GiB each')
+    if not re.fullmatch(r'[a-z][a-z0-9-]{0,39}',config.get('nodegroup_name','application')):
+        raise ValueError('Invalid nodegroup name')
     if config['rds_instance_class'] not in ['db.t4g.small','db.t4g.medium']:raise ValueError('Unreviewed database instance class')
     if len(config['availability_zones'])!=2 or any(not z.startswith(config['region']) for z in config['availability_zones']):
         raise ValueError('Choose two availability zones in the configured region')
@@ -116,7 +118,9 @@ def render_cluster(config,output='artifacts/eks'):
     cluster=yaml.safe_load((ROOT/'infra/aws/eksctl.yaml').read_text())
     cluster['metadata'].update(name=config['cluster'],region=config['region'],version=config['kubernetes_version'])
     cluster['availabilityZones']=config['availability_zones'];cluster['vpc']['publicAccessCIDRs']=config['admin_cidrs']
-    cluster['managedNodeGroups'][0].update(instanceType=config['node_instance_type'],desiredCapacity=config['nodes'],minSize=config['nodes'])
+    cluster['managedNodeGroups'][0].update(name=config.get('nodegroup_name','application'),
+        instanceType=config['node_instance_type'],desiredCapacity=config['nodes'],
+        minSize=config['nodes'],maxSize=config['nodes'])
     (out/'eksctl.rendered.yaml').write_text(yaml.safe_dump(cluster,sort_keys=False))
 
 

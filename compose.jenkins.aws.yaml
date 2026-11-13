@@ -3,6 +3,7 @@ name: microserv-store-ci-aws
 services:
   jenkins:
     image: microserv-store/jenkins-eks:local
+    restart: unless-stopped
     build:
       context: ./infra/jenkins
       args: {KUBECTL_VERSION: v1.35.0}

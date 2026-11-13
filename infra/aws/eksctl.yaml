@@ -1,6 +1,8 @@
 # Review region, Kubernetes version and costs before provisioning.
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
+autoModeConfig:
+  enabled: false
 metadata:
   name: microserv-store
   region: us-east-1
@@ -30,11 +32,11 @@ addons:
     attachPolicyARNs:
       - arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicyV2
 managedNodeGroups:
-  - name: application
-    instanceType: t3.large
+  - name: application-economy
+    instanceType: t3a.medium
     desiredCapacity: 2
     minSize: 2
-    maxSize: 4
+    maxSize: 2
     privateNetworking: true
     volumeSize: 20
     labels:

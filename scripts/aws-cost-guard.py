@@ -4,6 +4,7 @@ This is a point-in-time configuration check, not a billing cap or a background
 monitor. Existing resources keep accruing costs even when all checks pass.
 """
 import argparse
+from collections import Counter
 import datetime
 import json
 from pathlib import Path
@@ -38,7 +39,7 @@ def main():
     if kubeconfig['clusters'][0]['cluster']['server'] != cluster['endpoint']:
         raise ValueError('Kubernetes context points at another cluster')
     nodegroup = aws('eks', 'describe-nodegroup', '--cluster-name', config['cluster'],
-                    '--nodegroup-name', 'application')['nodegroup']
+                    '--nodegroup-name', config.get('nodegroup_name','application'))['nodegroup']
     instances = aws('ec2', 'describe-instances', '--filters', 'Name=vpc-id,Values=' + vpc,
                     'Name=instance-state-name,Values=running')['Reservations']
     machines = [{'id': i['InstanceId'], 'type': i['InstanceType']}
@@ -50,10 +51,12 @@ def main():
     hpas = kube('-n', 'store', 'get', 'hpa')['items']
     services = kube('-n', 'store', 'get', 'services')['items']
     problems = []
-    if len(machines) != 3 or any(i['type'] != 't3.large' for i in machines):
-        problems.append('Running VPC instances differ from the reviewed baseline: three t3.large')
-    if nodegroup['scalingConfig']['desiredSize'] != 2:
-        problems.append('Worker desired capacity differs from two')
+    expected = Counter({config['node_instance_type']:config['nodes']})
+    expected[config.get('jenkins_instance_type','t3.large')] += 1
+    if Counter(i['type'] for i in machines) != expected:
+        problems.append('Running VPC instance types/counts differ from reviewed configuration: '+str(dict(expected)))
+    if nodegroup['scalingConfig']['desiredSize'] != config['nodes']:
+        problems.append('Worker desired capacity differs from configured count')
     if scalers:
         problems.append('Node autoscaler controller detected; review node cost exposure')
     if cluster.get('computeConfig', {}).get('enabled'):
@@ -66,6 +69,7 @@ def main():
         'utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'cluster': config['cluster'], 'region': config['region'],
         'running_vpc_instances': machines, 'worker_scaling': nodegroup['scalingConfig'],
+        'expected_instance_types': dict(expected),
         'node_autoscaler_deployments': scalers,
         'hpas': [{'name': h['metadata']['name'], 'min': h['spec']['minReplicas'],
                   'max': h['spec']['maxReplicas'], 'current': h.get('status', {}).get('currentReplicas')}
