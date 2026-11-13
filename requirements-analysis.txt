@@ -1,0 +1,2 @@
+# Optional local plots only; does not change application or Jenkins images.
+matplotlib==3.10.8

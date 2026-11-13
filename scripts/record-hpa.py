@@ -35,13 +35,15 @@ live.write_text("Starting live Kubernetes evidence...",encoding="utf-8")
 load=None
 loadlog=(output/"recorded-load.log").open("w")
 started=time.monotonic();snapshots=[];last_guard=started
+deadline=started+args.duration+20+args.cooldown
 base=["kubectl","--context",args.context,"-n","store"]
 try:
-    while time.monotonic()-started < args.duration+20+args.cooldown:
+    while time.monotonic() < deadline:
         elapsed=time.monotonic()-started
         if cloud and time.monotonic()-last_guard>=30:
             subprocess.run([sys.executable,"scripts/aws-cost-guard.py","--context",args.context],check=True)
             last_guard=time.monotonic()
+            if time.monotonic()>=deadline:break
         if elapsed>=10 and load is None:
             load=subprocess.Popen([sys.executable,"scripts/load.py","--base-url",args.base_url,"--users",str(args.users),
                 "--duration",str(args.duration),"--scenario","login","--output",str(output/("login-load.json" if cloud else "k8s-login-final.json"))],stdout=loadlog,stderr=loadlog)
@@ -52,10 +54,12 @@ try:
                   f"Context: {args.context} | login users: {args.users} | load: {status}",""]
         sample={"utc":sections[2],"load_status":status,"load_users":args.users,"context":args.context}
         for label,cmd in [("HPA",["get","hpa"]),("DEPLOYMENTS",["get","deployments"]),("CPU AND MEMORY",["top","pods","-l","app=account"])]:
+            if time.monotonic()>=deadline:break
             result=subprocess.run(base+cmd,capture_output=True,text=True,timeout=20)
             text=result.stdout or result.stderr
             sample[label]=text
             sections.extend([label,text.rstrip(),""])
+        if time.monotonic()>=deadline:break
         structured=subprocess.run(base+["get","hpa","-o","json"],capture_output=True,text=True,timeout=20,check=True)
         sample['hpa_status']=[{'name':h['metadata']['name'],'current':h.get('status',{}).get('currentReplicas'),
                               'desired':h.get('status',{}).get('desiredReplicas')}

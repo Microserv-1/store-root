@@ -19,13 +19,14 @@ Release da raiz: `6617d8774baabe5943b9cbf4ec2e9a257edf3a97`.
    benchmarks antigos para esta rodada ou para commits diferentes.
 4. **Entrega individual:** depois de produzidos, vincular apresentação e
    vídeos, registrar revisão cruzada e enviar seu próprio site no Blackboard.
-   HPA EKS e vídeo final ainda não estão concluídos.
+   HPA EKS e vídeo técnico estão prontos; vídeo humano final segue pendente.
 
 Referências prontas para compartilhar por link:
 
 - [Deploy e pendências](https://microserv-1.github.io/store-docs-a/closure/).
 - [Aceite real no EKS](https://microserv-1.github.io/store-docs-a/evidence/2026-11-13-eks/business-integration.json).
 - [Custos da infraestrutura real](https://microserv-1.github.io/store-docs-a/operations/).
+- [Carga, HPA e vídeo técnico EKS](https://microserv-1.github.io/store-docs-a/eks-load/).
 
 Publique apenas seus próprios commits. Não é necessário refazer os serviços.
 O teto adicional compartilhado é US$ 20: não iniciar carga/builds/recursos na
