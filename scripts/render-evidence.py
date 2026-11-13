@@ -5,9 +5,13 @@ from pathlib import Path
 import shutil
 import subprocess
 import os
+import argparse
 from PIL import Image, ImageDraw, ImageFont
 
-root=Path("artifacts")
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--directory',default='artifacts')
+args=parser.parse_args()
+root=Path(args.directory)
 samples=json.loads((root/"recorded-hpa.json").read_text())
 ffmpeg=shutil.which("ffmpeg")
 if not ffmpeg:raise RuntimeError("ffmpeg required")
@@ -15,7 +19,7 @@ fontpath="C:/Windows/Fonts/consola.ttf" if os.name=="nt" else "/usr/share/fonts/
 font=ImageFont.truetype(fontpath,20)
 segments=[]
 for i,sample in enumerate(samples):
-    text="MICROSERV STORE | REPLAY OF REAL LOCAL COMMAND OUTPUT\n"
+    text="MICROSERV STORE | REPLAY OF REAL COMMAND OUTPUT\n"
     text+="Context: "+sample.get("context","kind-microserv-store")+"; captured timestamps below.\n"
     text+=sample["utc"]+f" | Login load: {sample.get('load_users',4)} users | "+sample["load_status"]+"\n\n"
     for key in ("HPA","DEPLOYMENTS","CPU AND MEMORY"):
@@ -37,4 +41,4 @@ for i,sample in enumerate(samples):
 concat=root/"segments.txt"
 concat.write_text("".join(f"file '{p.name}'\n" for p in segments))
 subprocess.run([ffmpeg,"-y","-hide_banner","-loglevel","error","-f","concat","-safe","0","-i",str(concat),"-c","copy","-movflags","+faststart",str(root/"hpa-evidence.mp4")],check=True)
-print("Rendered artifacts/hpa-evidence.mp4 from actual captured snapshots")
+print("Rendered "+str(root/"hpa-evidence.mp4")+" from actual captured snapshots")
