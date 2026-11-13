@@ -33,7 +33,9 @@ def load_config(path,example=False,cluster_only=False):
         network=ipaddress.ip_network(cidr,strict=True)
         if not example and (not network.network_address.is_global or network.prefixlen<24):
             raise ValueError('Use narrow real public operator CIDRs, never a documentation CIDR or 0.0.0.0/0')
-    if cluster_only:return config
+    mode=config.get('access_mode','https-alb')
+    if mode not in ['port-forward','https-alb']:raise ValueError('Unknown access_mode')
+    if cluster_only or mode=='port-forward':return config
     if not re.fullmatch(r'(?=.{1,253}$)[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}',config['domain']):raise ValueError('Invalid domain')
     certificate=f"arn:aws:acm:{config['region']}:{config['account_id']}:certificate/"
     if not re.fullmatch(re.escape(certificate)+r'[a-f0-9-]{36}',config['certificate_arn']):raise ValueError('Certificate region/account/ID mismatch')
@@ -140,16 +142,17 @@ def render(config,example=False,output='artifacts/eks'):
                     container.setdefault('volumeMounts',[]).append({'name':'rds-ca','mountPath':'/etc/rds-ca','readOnly':True})
             items.append(doc)
     annotations={'alb.ingress.kubernetes.io/scheme':'internet-facing',
-        'alb.ingress.kubernetes.io/target-type':'ip','alb.ingress.kubernetes.io/certificate-arn':config['certificate_arn'],
+        'alb.ingress.kubernetes.io/target-type':'ip','alb.ingress.kubernetes.io/certificate-arn':config.get('certificate_arn',''),
         'alb.ingress.kubernetes.io/listen-ports':'[{"HTTP":80},{"HTTPS":443}]',
         'alb.ingress.kubernetes.io/ssl-redirect':'443','alb.ingress.kubernetes.io/healthcheck-path':'/health-check',
-        'alb.ingress.kubernetes.io/subnets':','.join(config['public_subnets']),
+        'alb.ingress.kubernetes.io/subnets':','.join(config.get('public_subnets',[])),
         'alb.ingress.kubernetes.io/tags':'project='+config['cluster']}
-    items.append({'apiVersion':'networking.k8s.io/v1','kind':'Ingress',
+    ingress={'apiVersion':'networking.k8s.io/v1','kind':'Ingress',
         'metadata':{**metadata('gateway'),'annotations':annotations},
-        'spec':{'ingressClassName':'alb','tls':[{'hosts':[config['domain']]}],
-                'rules':[{'host':config['domain'],'http':{'paths':[{'path':'/','pathType':'Prefix',
-                    'backend':{'service':{'name':'gateway','port':{'number':8000}}}}]}}]}})
+        'spec':{'ingressClassName':'alb','tls':[{'hosts':[config.get('domain','')]}],
+                'rules':[{'host':config.get('domain',''),'http':{'paths':[{'path':'/','pathType':'Prefix',
+                    'backend':{'service':{'name':'gateway','port':{'number':8000}}}}]}}]}}
+    if config.get('access_mode','https-alb')=='https-alb':items.append(ingress)
     application_kinds={'Deployment','ConfigMap','Service','HorizontalPodAutoscaler','PodDisruptionBudget'}
     applications=[resource for resource in items if resource['kind'] in application_kinds and
                   resource['metadata']['name'] not in ['redis','rabbitmq','rabbitmq-headless']]
@@ -182,7 +185,7 @@ def render(config,example=False,output='artifacts/eks'):
           {'item':'RDS gp3','quantity':20,'unit':'GB-month; prorate by hours'},
           {'item':'RabbitMQ EBS gp3','quantity':2,'unit':'GB-month; prorate by hours'},
           {'item':'NAT Gateway','quantity':1,'unit':'gateway-hour + processed GB'},
-          {'item':'Application Load Balancer','quantity':1,'unit':'ALB-hour + LCU-hour'},
+          {'item':'Application Load Balancer','quantity':1 if config.get('access_mode','https-alb')=='https-alb' else 0,'unit':'ALB-hour + LCU-hour'},
           {'item':'Public IPv4, data egress, CloudWatch, snapshots/backups, CPU surplus credits','quantity':None,'unit':'measure actual configuration/usage'},
           {'item':'Jenkins host (if dedicated EC2)','quantity':None,'unit':'instance-hour + EBS + network; include only when used'}],
         'pricing_status':'Inputs prepared; enter current region-specific Calculator rates/usage and save a share link or export before provisioning.',

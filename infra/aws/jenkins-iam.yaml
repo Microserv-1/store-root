@@ -2,7 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: EC2 Jenkins agent identity; operator separately grants namespace-scoped EKS access
 Parameters:
   ClusterName: {Type: String, Default: microserv-store}
-  CertificateArn: {Type: String, AllowedPattern: 'arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[a-f0-9-]+'}
+  CertificateArn: {Type: String, Default: '', AllowedPattern: '(^$)|(^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[a-f0-9-]+$)'}
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
 Resources:
   JenkinsRole:
     Type: AWS::IAM::Role
@@ -22,14 +24,26 @@ Resources:
                 Action: eks:DescribeCluster
                 Resource: !Sub 'arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}'
               - Effect: Allow
-                Action: [eks:DescribeClusterVersions, ec2:DescribeSubnets, ec2:DescribeRouteTables]
+                Action: eks:DescribeClusterVersions
                 Resource: '*'
                 Condition:
                   StringEquals:
                     aws:RequestedRegion: !Ref AWS::Region
-              - Effect: Allow
-                Action: acm:DescribeCertificate
-                Resource: !Ref CertificateArn
+              - !If
+                - HasCertificate
+                - Effect: Allow
+                  Action: acm:DescribeCertificate
+                  Resource: !Ref CertificateArn
+                - !Ref AWS::NoValue
+              - !If
+                - HasCertificate
+                - Effect: Allow
+                  Action: [ec2:DescribeSubnets, ec2:DescribeRouteTables]
+                  Resource: '*'
+                  Condition:
+                    StringEquals:
+                      aws:RequestedRegion: !Ref AWS::Region
+                - !Ref AWS::NoValue
       Tags: [{Key: project, Value: microserv-store}]
   JenkinsInstanceProfile:
     Type: AWS::IAM::InstanceProfile

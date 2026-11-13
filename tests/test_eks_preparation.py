@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -16,12 +17,13 @@ def module(name):
 
 
 prepare=module('prepare-eks');secret_inputs=module('eks-secrets');release=module('eks-apply')
+preflight=module('eks-preflight')
 
 
 class PreparationGuards(unittest.TestCase):
     def config(self,**changes):
         data=json.loads((ROOT/'infra/aws/deploy.example.json').read_text())
-        data.update(account_id='111122223333',domain='api.store.invalid',admin_cidrs=['8.8.8.8/32'],
+        data.update(account_id='111122223333',access_mode='https-alb',domain='api.store.invalid',admin_cidrs=['8.8.8.8/32'],
                     public_subnets=['subnet-1234567890abcdef0','subnet-abcdef12345678900'],
                     certificate_arn='arn:aws:acm:us-east-1:111122223333:certificate/11111111-2222-3333-4444-555555555555')
         data.update(changes)
@@ -50,6 +52,37 @@ class PreparationGuards(unittest.TestCase):
         data=self.config(public_subnets=[],certificate_arn='',domain='')
         self.load(data,cluster_only=True)
         with self.assertRaises(ValueError):self.load(data)
+
+    def test_private_access_needs_no_domain_certificate_or_public_subnets(self):
+        data=self.config(access_mode='port-forward')
+        for key in ['domain','certificate_arn','public_subnets']:data.pop(key)
+        config=self.load(data)
+        with tempfile.TemporaryDirectory() as temp:
+            prepare.render(config,example=True,output=temp)
+            document=json.loads((Path(temp)/'release.json').read_text())
+            self.assertFalse(any(r['kind']=='Ingress' for r in document['items']))
+            self.assertTrue(all(r['spec'].get('type','ClusterIP')=='ClusterIP' for r in document['items'] if r['kind']=='Service'))
+            costs=json.loads((Path(temp)/'cost-inputs.json').read_text())
+            self.assertEqual(next(r['quantity'] for r in costs['resources'] if r['item']=='Application Load Balancer'),0)
+            preflight.offline(Path(temp))
+
+    def test_private_preflight_skips_acm_and_load_balancer_lookups(self):
+        config=self.config(access_mode='port-forward',domain='',certificate_arn='',public_subnets=[])
+        def reply(args):
+            if args[1:3]==['sts','get-caller-identity']:return json.dumps({'Account':config['account_id'],'Arn':'test'})
+            if args[1:3]==['eks','describe-cluster-versions']:return json.dumps({'clusterVersions':[{'versionStatus':'STANDARD_SUPPORT'}]})
+            self.fail('Unexpected ACM/network API call in private mode: '+str(args[:3]))
+        with patch.object(preflight,'command',side_effect=reply):
+            result=preflight.cloud(config)
+        self.assertEqual(result['certificate_status'],'NOT_REQUIRED')
+
+    def test_public_access_still_renders_and_checks_https_ingress(self):
+        with tempfile.TemporaryDirectory() as temp:
+            prepare.render(self.load(self.config()),example=True,output=temp)
+            document=json.loads((Path(temp)/'release.json').read_text())
+            ingress=next(r for r in document['items'] if r['kind']=='Ingress')
+            self.assertEqual(ingress['spec']['rules'][0]['host'],'api.store.invalid')
+            preflight.offline(Path(temp))
 
     def test_master_password_never_enters_the_application_secret(self):
         values={key:f'{index:064x}' for index,key in enumerate(secret_inputs.KEYS,1)}

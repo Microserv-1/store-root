@@ -44,6 +44,8 @@ Jenkins local: [instalação, credenciais e execução dos jobs](docs/site/docs/
 
 A [preparação completa do EKS](docs/site/docs/eks-preparation.md) inclui configuração dos seis serviços, RDS com três usuários/bancos, Redis/RabbitMQ, HTTPS, IAM/RBAC, agente Jenkins AWS, preflight, carga de negócio e rollback. `Jenkinsfile.eks` faz checkout real do GitHub e valida uma prévia por padrão, com deploy desabilitado. No EKS, usar esse job de release para preservar a configuração de certificados do banco.
 
+Sem domínio próprio, o exemplo usa `access_mode=port-forward`: a aplicação permanece no EKS e é acessada pelo Gateway via túnel local. Domínio, ACM e ALB são opcionais, habilitados somente com `access_mode=https-alb`.
+
 Cada serviço tem Dockerfile, Jenkinsfile e `k8s/k8s.yaml`. Infraestrutura compartilhada em `infra/`; scripts em `scripts/`. Consulte [execução e deploy](docs/site/docs/deploy.md), [contratos para B](docs/site/docs/contracts.md) e [estado das verificações](docs/site/docs/status.md).
 
 O deploy AWS cria recursos pagos e exige conta, permissões, revisão de região/custos e configuração de segredos. Nenhum template representa evidência de um deploy executado.

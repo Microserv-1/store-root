@@ -37,11 +37,14 @@ def offline(directory):
             assert any(v['name']=='rds-ca' for v in container['volumeMounts'])
     assert not {'postgres','product-db','order-db'}.intersection(deployments), 'Cloud must use the isolated RDS databases'
     assert all(r['spec'].get('type','ClusterIP')=='ClusterIP' for r in items if r['kind']=='Service')
-    ingress=next(r for r in items if r['kind']=='Ingress')
-    annotations=ingress['metadata']['annotations']
-    assert annotations['alb.ingress.kubernetes.io/ssl-redirect']=='443'
-    assert json.loads(annotations['alb.ingress.kubernetes.io/listen-ports'])==[{'HTTP':80},{'HTTPS':443}]
-    assert ingress['spec']['rules'][0]['http']['paths'][0]['backend']['service']['name']=='gateway'
+    ingresses=[r for r in items if r['kind']=='Ingress']
+    if metadata['config'].get('access_mode','https-alb')=='https-alb':
+        assert len(ingresses)==1
+        annotations=ingresses[0]['metadata']['annotations']
+        assert annotations['alb.ingress.kubernetes.io/ssl-redirect']=='443'
+        assert json.loads(annotations['alb.ingress.kubernetes.io/listen-ports'])==[{'HTTP':80},{'HTTPS':443}]
+        assert ingresses[0]['spec']['rules'][0]['http']['paths'][0]['backend']['service']['name']=='gateway'
+    else:assert not ingresses, 'Port-forward mode must not create public ingress'
     rabbit=next(r for r in items if r['kind']=='StatefulSet' and r['metadata']['name']=='rabbitmq')
     assert rabbit['spec']['volumeClaimTemplates'][0]['spec']['storageClassName']=='store-gp3'
     storage=next(r for r in items if r['kind']=='StorageClass')
@@ -49,7 +52,8 @@ def offline(directory):
     roles=[r for r in items if r['kind']=='Role' and r['metadata']['name']=='store-deployer']
     assert len(roles)==1 and not any('secrets' in rule['resources'] or '*' in rule['verbs'] for rule in roles[0]['rules'])
     assert bootstrap['items'][1]['metadata']['namespace']=='store-bootstrap'
-    return {'example_only':metadata['example_only'],'resource_count':len(items),'offline_checks':'PASS'}
+    return {'example_only':metadata['example_only'],'access_mode':metadata['config'].get('access_mode','https-alb'),
+            'resource_count':len(items),'offline_checks':'PASS'}
 
 
 def local_dry_run(directory,context):
@@ -74,15 +78,16 @@ def cloud(config,context=None):
     versions=aws('eks','describe-cluster-versions','--cluster-versions',config['kubernetes_version'])['clusterVersions']
     if not versions or versions[0].get('versionStatus',versions[0].get('status','')).upper()!='STANDARD_SUPPORT':
         raise ValueError('Pinned Kubernetes version is not in standard support in the target region')
-    certificate=aws('acm','describe-certificate','--certificate-arn',config['certificate_arn'])['Certificate']
-    if certificate['Status']!='ISSUED':raise ValueError('ACM certificate must be ISSUED')
+    public=config.get('access_mode','https-alb')=='https-alb'
+    certificate=aws('acm','describe-certificate','--certificate-arn',config['certificate_arn'])['Certificate'] if public else {'Status':'NOT_REQUIRED'}
+    if public and certificate['Status']!='ISSUED':raise ValueError('ACM certificate must be ISSUED')
     names=certificate.get('SubjectAlternativeNames',[])
     def matches(name):return name==config['domain'] or (name.startswith('*.') and config['domain'].split('.',1)[1]==name[2:])
-    if not any(matches(name) for name in names):raise ValueError('ACM certificate does not cover the application domain')
-    subnets=aws('ec2','describe-subnets','--subnet-ids',*config['public_subnets'])['Subnets']
-    if len({s['VpcId'] for s in subnets})!=1 or len({s['AvailabilityZone'] for s in subnets})<2:
+    if public and not any(matches(name) for name in names):raise ValueError('ACM certificate does not cover the application domain')
+    subnets=aws('ec2','describe-subnets','--subnet-ids',*config['public_subnets'])['Subnets'] if public else []
+    if public and (len({s['VpcId'] for s in subnets})!=1 or len({s['AvailabilityZone'] for s in subnets})<2):
         raise ValueError('Load balancer subnets must share the EKS VPC and span two AZs')
-    tables=aws('ec2','describe-route-tables','--filters','Name=vpc-id,Values='+subnets[0]['VpcId'])['RouteTables']
+    tables=aws('ec2','describe-route-tables','--filters','Name=vpc-id,Values='+subnets[0]['VpcId'])['RouteTables'] if public else []
     for subnet in subnets:
         explicit=[table for table in tables if any(a.get('SubnetId')==subnet['SubnetId'] for a in table.get('Associations',[]))]
         selected=explicit or [table for table in tables if any(a.get('Main') for a in table.get('Associations',[]))]
@@ -90,19 +95,20 @@ def cloud(config,context=None):
                 route.get('GatewayId','').startswith('igw-') for route in selected[0].get('Routes',[])):
             raise ValueError('Internet-facing ALB subnet lacks an active default route to an Internet Gateway')
     result={'account':identity['Account'],'caller_arn':identity['Arn'],'kubernetes_version':config['kubernetes_version'],
-            'certificate_status':certificate['Status'],'subnet_vpc':subnets[0]['VpcId'],
+            'certificate_status':certificate['Status'],'subnet_vpc':subnets[0]['VpcId'] if public else None,
             'note':'Read-only AWS checks; this does not prove provisioning or workload health'}
     if context:
         cluster=aws('eks','describe-cluster','--name',config['cluster'])['cluster']
         if cluster['status']!='ACTIVE' or cluster['version']!=config['kubernetes_version']:
             raise ValueError('Target cluster is not ACTIVE with the pinned version')
-        if cluster['resourcesVpcConfig']['vpcId']!=subnets[0]['VpcId']:
+        if public and cluster['resourcesVpcConfig']['vpcId']!=subnets[0]['VpcId']:
             raise ValueError('ALB subnets are outside the EKS VPC')
         kube=json.loads(command(['kubectl','--context',context,'config','view','--minify','-o','json']))
         if kube['clusters'][0]['cluster']['server']!=cluster['endpoint']:
             raise ValueError('Kubeconfig points at another cluster endpoint')
-        controller=json.loads(command(['kubectl','--context',context,'-n','kube-system','get','deployment','aws-load-balancer-controller','-o','json']))
-        if controller.get('status',{}).get('availableReplicas',0)<1:raise ValueError('AWS Load Balancer Controller is not ready')
+        if public:
+            controller=json.loads(command(['kubectl','--context',context,'-n','kube-system','get','deployment','aws-load-balancer-controller','-o','json']))
+            if controller.get('status',{}).get('availableReplicas',0)<1:raise ValueError('AWS Load Balancer Controller is not ready')
         command(['kubectl','--context',context,'get','csidriver','ebs.csi.aws.com'])
         metrics=json.loads(command(['kubectl','--context',context,'get','apiservice','v1beta1.metrics.k8s.io','-o','json']))
         if not any(c['type']=='Available' and c['status']=='True' for c in metrics.get('status',{}).get('conditions',[])):
