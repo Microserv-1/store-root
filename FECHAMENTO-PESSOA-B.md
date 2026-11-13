@@ -11,8 +11,8 @@ Release da raiz: `6617d8774baabe5943b9cbf4ec2e9a257edf3a97`.
 
 1. **status.md / deploy.md:** EKS, RDS e Jenkins remoto foram executados com
    sucesso em 13/11/2026. Marcar os registros antigos como históricos.
-2. **operations.md:** a implantação real usa dois workers `t3.large`,
-   Jenkins `t3.large`, RDS `db.t4g.small` Single-AZ com 20 GiB, Redis/RabbitMQ
+2. **operations.md:** a implantação real usa dois workers `t3a.medium`,
+   Jenkins `t3a.small`, RDS `db.t4g.small` Single-AZ com 20 GiB, Redis/RabbitMQ
    no cluster e acesso por port-forward, sem ALB. Corrigir as classes antigas.
 3. **Evidências:** vincular os registros abaixo. O aceite atual comprovou
    cache HIT/BYPASS/invalidação e replay idempotente; não transferir ganhos de
@@ -30,5 +30,7 @@ Referências prontas para compartilhar por link:
 
 Publique apenas seus próprios commits. Não é necessário refazer os serviços.
 O teto adicional compartilhado é US$ 20: não iniciar carga/builds/recursos na
-AWS sem alinhar com Yuri; a configuração ligada custa cerca de US$ 0,44/h
+AWS sem alinhar com Yuri; a configuração ligada custa cerca de US$ 0,287/h
 mais variáveis. Não parar ou excluir recursos sem combinar a avaliação.
+
+Redução de máquinas já validada com novo aceite de 40 verificações: [evidências e limites](https://microserv-1.github.io/store-docs-a/right-sizing/). O teste HPA anterior foi nas máquinas grandes; não atribuir seus números às menores. Nenhuma mudança de código em B é necessária.

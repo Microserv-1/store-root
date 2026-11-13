@@ -107,7 +107,14 @@ def dependencies(lock,storage_class='store-gp3'):
                   'spec':{'serviceName':'rabbitmq-headless','replicas':1,'selector':{'matchLabels':{'app':'rabbitmq'}},
                     'persistentVolumeClaimRetentionPolicy':{'whenDeleted':'Retain','whenScaled':'Retain'},
                     'template':{'metadata':{'labels':{'app':'rabbitmq'}},'spec':{'automountServiceAccountToken':False,
-                                'securityContext':{'fsGroup':101},'terminationGracePeriodSeconds':60,'containers':[rabbit]}},
+                                'securityContext':{'fsGroup':101,'fsGroupChangePolicy':'OnRootMismatch'},
+                                'initContainers':[{'name':'cookie-permissions','image':lock['rabbitmq']['image'],
+                                  'command':['sh','-ec','if [ -f /var/lib/rabbitmq/.erlang.cookie ]; then chmod 600 /var/lib/rabbitmq/.erlang.cookie; fi'],
+                                  'securityContext':{'runAsUser':100,'runAsGroup':101,'runAsNonRoot':True,
+                                    'readOnlyRootFilesystem':True,'allowPrivilegeEscalation':False,'capabilities':{'drop':['ALL']}},
+                                  'resources':{'requests':{'cpu':'10m','memory':'16Mi'},'limits':{'cpu':'100m','memory':'32Mi'}},
+                                  'volumeMounts':[{'name':'data','mountPath':'/var/lib/rabbitmq'}]}],
+                                'terminationGracePeriodSeconds':60,'containers':[rabbit]}},
                     'volumeClaimTemplates':[{'metadata':{'name':'data'},'spec':{'accessModes':['ReadWriteOnce'],
                                             'storageClassName':storage_class,'resources':{'requests':{'storage':'2Gi'}}}}]}})
     return items
