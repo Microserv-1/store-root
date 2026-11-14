@@ -47,6 +47,8 @@ def main():
                        and s['load_status'].startswith('FINISHED')), None)
     result = {
         'context': samples[0]['context'], 'baseline_replicas': replicas[0],
+        'baseline_ready': ready[0],
+        'initial_hpa_status_matches_deployment': replicas[0] == ready[0],
         'peak_replicas': max(replicas), 'peak_ready': max(ready),
         'final_replicas': replicas[-1], 'final_ready': ready[-1],
         'first_additional_ready_utc': scale_up, 'first_return_to_baseline_utc': scale_down,
@@ -61,11 +63,12 @@ def main():
             'Client latency includes the authenticated port-forward/network path.',
             'Gateway tunnel pins one Gateway pod; Account distribution is proved by per-pod metrics.',
             'HPA CPU percentage is relative to requests, not machine-wide CPU percentage.',
-            'No monthly availability, uniform distribution or unlimited capacity is established.'
+            'No monthly availability, uniform distribution or unlimited capacity is established.',
+            'HPA status and Deployment are sampled sequentially and can disagree during reconciliation; the ready-cycle uses Deployment readiness and requires the final HPA count to agree.'
         ]
     }
     result['scale_cycle_observed'] = bool(scale_up and scale_down and max(ready) > ready[0]
-                                         and replicas[-1] == replicas[0] and ready[-1] == ready[0])
+                                         and replicas[-1] == ready[0] and ready[-1] == ready[0])
     (folder / 'summary.json').write_text(json.dumps(result, indent=2) + '\n')
 
     end = dt.datetime.fromisoformat(load['timestamp_utc'].replace('Z', '+00:00'))
@@ -95,7 +98,7 @@ def main():
         axis.grid(alpha=.2)
         axis.set_xlim(times[0], times[-1])
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S', tz=dt.timezone.utc))
-    axes[-1].set_xlabel('Horário UTC em 13/11/2026. Faixa azul: carga de login aproximada.')
+    axes[-1].set_xlabel('Horário UTC em ' + times[0].strftime('%d/%m/%Y') + '. Faixa azul: carga de login aproximada.')
     title = ('Account: ' + str(ready[0]) + ' réplicas prontas na baseline, pico de ' +
              str(max(ready)) + ', final ' + str(ready[-1]) + '\n' + str(load['users']) +
              ' usuários, ' + str(load['requested_duration_s']) + ' s, ' + str(load['requests']) +

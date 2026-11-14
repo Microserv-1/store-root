@@ -33,4 +33,11 @@ O teto adicional compartilhado é US$ 20: não iniciar carga/builds/recursos na
 AWS sem alinhar com Yuri; a configuração ligada custa cerca de US$ 0,287/h
 mais variáveis. Não parar ou excluir recursos sem combinar a avaliação.
 
-Redução de máquinas já validada com novo aceite de 40 verificações: [evidências e limites](https://microserv-1.github.io/store-docs-a/right-sizing/). O teste HPA anterior foi nas máquinas grandes; não atribuir seus números às menores. Nenhuma mudança de código em B é necessária.
+Redução de máquinas já validada com novo aceite de 40 verificações: [evidências e limites](https://microserv-1.github.io/store-docs-a/right-sizing/). O teste HPA de 13/11 foi nas máquinas grandes; não atribuir seus números às menores. Nenhuma mudança de código em B é necessária.
+
+Rodada de 14/11 nas máquinas menores: o aceite de 40 verificações passou;
+negócio com 1/4/8 usuários por 60s resultou em 127/508/976 requisições, zero
+erros e p95 de 416/414/434 ms. O login com quatro usuários/120s resultou em
+540 respostas 200, zero erros e p95 de 1.156 ms. Vincular o [relatório desta
+rodada](https://microserv-1.github.io/store-docs-a/final-validation/) na sua
+documentação, preservando contexto e versões. Não é medição de SLA mensal.
