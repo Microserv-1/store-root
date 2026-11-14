@@ -42,6 +42,11 @@ erros e p95 de 416/414/434 ms. O login com quatro usuários/120s resultou em
 rodada](https://microserv-1.github.io/store-docs-a/final-validation/) na sua
 documentação, preservando contexto e versões. Não é medição de SLA mensal.
 
-O agente também produziu o [vídeo curto de 1min57s](https://microserv-1.github.io/store-docs-a/project-video/),
-com narração sintética identificada. Vincular no seu site e confirmar se o
-professor aceita esse formato ou exige participação/voz real dos dois alunos.
+O agente também produziu o [vídeo curto de 1min56s](https://microserv-1.github.io/store-docs-a/project-video/),
+ajustado para ficar sem narração conforme preferência de Yuri. Nomes informados:
+Yuri Henrique e Gustavo Lina. Vincular a versão atual no seu site.
+
+Yuri autorizou a pausa da AWS em 14/11: zero workers, RDS e Jenkins parados,
+mantendo dados persistentes. Os testes registrados ocorreram antes da pausa.
+Documentar o [estado e a retomada](https://microserv-1.github.io/store-docs-a/aws-pause/)
+sem apresentar o ambiente como continuamente disponível.

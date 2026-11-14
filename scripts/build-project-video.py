@@ -1,7 +1,7 @@
 """Build a labelled 1–2 minute project video locally from recorded evidence.
 
 No AWS calls, workloads, browser automation, cloned voices or student impersonation.
-Requires Windows Maria Desktop TTS, ffmpeg/ffprobe and requirements-video.txt.
+Requires ffmpeg/ffprobe and requirements-video.txt; narrated mode also uses Windows TTS.
 """
 import argparse
 import hashlib
@@ -37,7 +37,7 @@ def card(draw,box,title,detail,color=BLUE):
     text(draw,(x,y),title,35,color,True)
     lines(draw,(x,y+60),detail,width=max(15,int((box[2]-box[0]-56)/18)),size=29)
 
-def draw_scene(scene,index,evidence):
+def draw_scene(scene,index,evidence,silent=False):
     image=Image.new('RGB',(WIDTH,HEIGHT),BG);d=ImageDraw.Draw(image)
     text(d,(100,55),'MICROSERV STORE  /  PLATFORMS, MICROSERVICES, DEVOPS AND APIs',25,MUTED)
     text(d,(100,112),scene['title'],68,WHITE,True)
@@ -46,7 +46,7 @@ def draw_scene(scene,index,evidence):
     if kind=='intro':
         text(d,(100,300),'6 serviços integrados',91,WHITE,True)
         text(d,(100,425),'Amazon EKS · RDS · Jenkins',58,BLUE,True)
-        lines(d,(105,545),'Yuri · Pessoa A\nGustavo · Pessoa B'.replace('\n','   /   '),width=65,size=42)
+        lines(d,(105,545),'Yuri Henrique · Pessoa A / Gustavo Lina · Pessoa B',width=75,size=38)
         card(d,(1040,620,1815,860),'Validação real no EKS','40 verificações aprovadas\n14 de novembro de 2026'.replace('\n',' · '),GREEN)
         text(d,(105,770),'Escopo técnico e autoria documentados',34,MUTED)
     elif kind=='architecture':
@@ -101,13 +101,15 @@ def draw_scene(scene,index,evidence):
         text(d,(115,775),'microserv-1.github.io/store-docs-a',52,BLUE,True)
         text(d,(115,870),'Código · documentação · relatórios · vídeos',33,MUTED)
     d.line((100,980,1820,980),fill='#2b4261',width=2)
-    text(d,(100,1002),'NARRAÇÃO SINTÉTICA · EVIDÊNCIAS REAIS REGISTRADAS EM 14/11/2026',23,MUTED)
+    label='VÍDEO SEM NARRAÇÃO' if silent else 'NARRAÇÃO SINTÉTICA'
+    text(d,(100,1002),label+' · EVIDÊNCIAS REAIS REGISTRADAS EM 14/11/2026',23,MUTED)
     text(d,(1710,1000),f'{index+1:02}/07',27,BLUE,True)
     return image
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',default='artifacts/project-video')
+    parser.add_argument('--silent',action='store_true',help='No speech synthesis and no audio track')
     args=parser.parse_args()
     out=Path(args.output).resolve();out.mkdir(parents=True,exist_ok=True)
     ffmpeg=shutil.which('ffmpeg');ffprobe=shutil.which('ffprobe')
@@ -119,34 +121,40 @@ def main():
     business=json.loads((evidence/'business-summary.json').read_text())
     assert summary['requests']==540 and summary['scale_cycle_observed'] and summary['error_ratio']==0
     assert business['total_requests']==1611
-    subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'scripts/narrate-project-video.ps1'),'-NarrationFile',str(config),'-OutputDirectory',str(out)],check=True)
+    if not args.silent:
+        subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'scripts/narrate-project-video.ps1'),'-NarrationFile',str(config),'-OutputDirectory',str(out)],check=True)
     durations=[]
     for i,scene in enumerate(data['scenes']):
-        draw_scene(scene,i,evidence).save(out/(scene['id']+'.png'))
-        duration=float(subprocess.check_output([ffprobe,'-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',str(out/(scene['id']+'.wav'))],text=True))
+        draw_scene(scene,i,evidence,args.silent).save(out/(scene['id']+'.png'))
+        duration=[12,20,18,18,14,20,14][i] if args.silent else float(subprocess.check_output([ffprobe,'-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',str(out/(scene['id']+'.wav'))],text=True))
         durations.append(duration)
     # Keep the final presentation under two minutes without clipping speech.
-    speed=max(1.0,sum(durations)/112)
+    speed=1.0 if args.silent else max(1.0,sum(durations)/112)
     segments=[];timeline=[];elapsed=0
     for scene,duration in zip(data['scenes'],durations):
-        length=duration/speed+.65
+        length=duration if args.silent else duration/speed+.65
         destination=out/(scene['id']+'.mp4')
-        subprocess.run([ffmpeg,'-y','-hide_banner','-loglevel','error','-loop','1','-framerate','25','-i',str(out/(scene['id']+'.png')),'-i',str(out/(scene['id']+'.wav')),'-af',f'atempo={speed},apad','-t',str(length),'-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-ar','48000',str(destination)],check=True)
-        timeline.append({'id':scene['id'],'start_s':elapsed,'duration_s':length,'narration':scene['narration']})
+        command=[ffmpeg,'-y','-hide_banner','-loglevel','error','-loop','1','-framerate','25','-i',str(out/(scene['id']+'.png'))]
+        if not args.silent:command+=['-i',str(out/(scene['id']+'.wav')),'-af',f'atempo={speed},apad']
+        command+=['-t',str(length),'-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p']
+        command+=['-an'] if args.silent else ['-c:a','aac','-b:a','160k','-ar','48000']
+        subprocess.run(command+[str(destination)],check=True)
+        timeline.append({'id':scene['id'],'start_s':elapsed,'duration_s':length,'description':scene['narration'],'narration':None if args.silent else scene['narration']})
         elapsed+=length;segments.append(destination)
     listing=out/'segments.txt';listing.write_text(''.join("file '"+p.name+"'\n" for p in segments),encoding='utf-8')
     destination=out/'project-presentation.mp4'
     subprocess.run([ffmpeg,'-y','-hide_banner','-loglevel','error','-f','concat','-safe','0','-i',str(listing),'-c','copy','-movflags','+faststart',str(destination)],check=True)
     result=json.loads(subprocess.check_output([ffprobe,'-v','error','-show_entries','format=duration,size:stream=codec_type,width,height','-of','json',str(destination)],text=True))
     actual=float(result['format']['duration']);assert 60<=actual<=120,result
-    manifest={'title':data['title'],'voice':'Microsoft Maria Desktop; synthetic, not either student','evidence_date':data['evidence_date'],'duration_s':actual,'bytes':int(result['format']['size']),'sha256':hashlib.sha256(destination.read_bytes()).hexdigest(),'audio_tempo_multiplier':speed,'scenes':timeline,'limitations':'Edited presentation of recorded real evidence; no new live demo or AWS workload. Does not claim human participation, oral validation or acceptance of synthetic narration by the instructor. Captions have approximate sentence timing.','source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (config,Path(__file__),ROOT/'scripts/narrate-project-video.ps1',evidence/'hpa/summary.json',evidence/'business-summary.json',evidence/'business-integration.json')}}
+    if args.silent:assert not any(s['codec_type']=='audio' for s in result['streams'])
+    manifest={'title':data['title'],'authors':data['authors'],'voice':None if args.silent else 'Microsoft Maria Desktop; synthetic, not either student','silent':args.silent,'evidence_date':data['evidence_date'],'duration_s':actual,'bytes':int(result['format']['size']),'sha256':hashlib.sha256(destination.read_bytes()).hexdigest(),'audio_tempo_multiplier':speed,'scenes':timeline,'limitations':'Edited presentation of recorded real evidence; no new live demo or AWS workload. Does not claim human participation or oral validation. Captions have approximate sentence timing and describe the scenes; they do not imply speech in silent mode.','source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (config,Path(__file__),ROOT/'scripts/narrate-project-video.ps1',evidence/'hpa/summary.json',evidence/'business-summary.json',evidence/'business-integration.json')}}
     (out/'provenance.json').write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
     def stamp(seconds):
         millis=round(seconds*1000)
         return f'{millis//3600000:02}:{millis//60000%60:02}:{millis//1000%60:02}.{millis%1000:03}'
     captions=['WEBVTT','']
     for scene in timeline:
-        sentences=re.split(r'(?<=[.!?])\s+',scene['narration'])
+        sentences=re.split(r'(?<=[.!?])\s+',scene['description'])
         total=sum(len(s.split()) for s in sentences);cursor=scene['start_s']
         for sentence in sentences:
             length=(scene['duration_s']-.65)*len(sentence.split())/total

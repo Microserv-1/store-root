@@ -1,9 +1,14 @@
-# Decisões finais — Yuri e Gustavo
+# Decisões finais — Yuri Henrique e Gustavo Lina
 
-Estado em 14/11/2026. A aplicação e a bateria técnica estão validadas no EKS.
-Nenhuma das decisões abaixo foi presumida como respondida.
+Estado em 14/11/2026. A bateria técnica foi validada no EKS. Yuri confirmou
+os nomes, pediu vídeo sem narração e autorizou a pausa da AWS, que foi
+executada preservando RDS, volume RabbitMQ e disco Jenkins.
 
-## 1. AWS: escolher uma opção
+## 1. AWS: pausa confirmada
+
+Workers zerados/terminados, RDS e EC2 Jenkins parados. O [registro de pausa e
+retomada](https://microserv-1.github.io/store-docs-a/aws-pause/) contém evidências.
+As outras opções abaixo exigem nova autorização; a pausa não encerra custos.
 
 | Opção | Consequência | Estimativa fixa futura |
 |---|---|---:|
@@ -20,32 +25,31 @@ preparado; não foi executado.
 
 ## 2. Identificação acadêmica
 
-Informar em uma resposta: nome acadêmico completo de Yuri, grupo e edição
-correta do curso. O site usa o nome conhecido, com confirmação pendente.
-Não inventar identificação nem alterar autoria de commits antigos.
+Nomes informados e atualizados: **Yuri Henrique e Gustavo Lina**. Grupo e
+edição acadêmica ainda não foram informados. Não inventar identificação nem
+alterar autoria de commits antigos.
 
 ## 3. Vídeo e apresentação
 
-O agente produziu um vídeo curto de apresentação, com voz sintética
-identificada, arquitetura e resultados reais. Não registra a voz, a imagem
-ou a participação oral de um aluno. Confirmar na rubrica se essa forma de
-narração é aceita; se exigir participação dos dois, substituir/complementar
-a narração com gravações reais da dupla, usando o material preparado.
+O agente ajustou o vídeo curto para **1min56s, sem narração/faixa de áudio**,
+conforme pedido de Yuri, com os nomes e os resultados reais. Ele não registra
+participação oral; a defesa individual continua sendo dos alunos.
 
 Os vídeos técnicos de cluster/HPA ficam separados, para não ultrapassar o
-limite de 1–2 minutos do vídeo curto. O arquivo de slides nativo/editável
-continua pendente por falha do serviço de apresentações; o roteiro e os
-quadros usados no vídeo estão disponíveis. Não apresentar um documento
-vazio como slides prontos.
+limite de 1–2 minutos do vídeo curto. Slides são os sete quadros de apoio
+(objetivo, arquitetura, fluxo, gargalos, resultados e conclusão) já presentes
+no vídeo. A exigência de um arquivo separado PowerPoint/PDF não foi confirmada;
+não apresentá-la como requisito acadêmico comprovado. O material e roteiro
+de apoio à apresentação estão preparados.
 
 ## 4. AWS Pricing Calculator
 
 A estimativa rastreável já existe: US$ 209,54 por 730h e US$ 20,67 por 72h
 futuras, antes de variáveis. Falta o link/exportação emitido pelo Calculator.
-O controle do navegador está indisponível para o agente. A dupla pode preencher
-os [parâmetros preparados](https://microserv-1.github.io/store-docs-a/calculator-inputs/)
-e fornecer o link/exportação, ou aguardar o controle funcionar. Não é preciso
-criar recursos AWS para usar o Calculator.
+Yuri pediu o passo a passo para preencher manualmente; ele está nos
+[parâmetros preparados](https://microserv-1.github.io/store-docs-a/calculator-inputs/).
+Fornecer o link/exportação depois de preencher. Não é preciso criar recursos
+AWS para usar o Calculator, nem retomar a aplicação pausada.
 
 ## 5. Documentação de Gustavo
 
@@ -68,11 +72,8 @@ publica commits nos repositórios de B.
 ## Resposta única sugerida
 
 ```text
-AWS: manter / pausar / encerrar (com decisão de retenção dos dados)
-Nome completo de Yuri:
 Grupo e edição:
-Narração sintética: aceita / precisa de voz dos alunos / vou confirmar
-Calculator: vou preencher e enviar o link / aguardar o navegador
+Calculator: link/exportação após preencher
 Rubrica, URL pública e Kind: confirmação ou pendências
 ```
 
