@@ -82,7 +82,7 @@ def main():
     before=snapshot();started=time.perf_counter();deadline=started+args.duration
 
     def worker(token):
-        orders=[];cursor=0
+        orders=[];cursor=0;order_attempts=0
         while time.perf_counter()<deadline:
             if args.scenario in ['products','business']:
                 request('GET',product_path,token,label='GET product',headers=cache_headers,
@@ -90,7 +90,10 @@ def main():
                 request('GET','/products',token,label='GET products',headers=cache_headers,
                         validate=lambda data:any(p['id']==product_id for p in data))
             if args.scenario in ['orders','business']:
-                if len(orders)<args.max_orders_per_user:
+                if order_attempts<args.max_orders_per_user:
+                    # A failed response may still follow a committed order. Bound attempts,
+                    # rather than only observed successes, to avoid retrying writes under load.
+                    order_attempts+=1
                     order=request('POST','/orders',token,{'items':[{'idProduct':product_id,'quantity':1}]},
                                   label='POST order',expected=201,validate=lambda data:Decimal(str(data['total']))==Decimal('3.25'))
                     if order and 'id' in order:orders.append(order['id'])
@@ -126,11 +129,12 @@ def main():
     result={'utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'base_url':base,'scenario':args.scenario,
             'users':args.users,'requested_duration_s':args.duration,'actual_duration_s':round(elapsed,3),
             'model':'closed-loop; pause after each business iteration','pause_ms':args.pause_ms,'cache':args.cache,
+            'max_order_post_attempts':args.users*args.max_orders_per_user,
             'max_orders_created':args.users*args.max_orders_per_user,'commits':commits,
             'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'overall':metrics(rows),'operations':{op:metrics([r for r in rows if r[0]==op]) for op in sorted({r[0] for r in rows})},
             'cluster_before':before,'cluster_after':snapshot(),
-            'limits':'Short local runs do not prove EKS performance or an SLA. Accounts/orders remain as test data; only the product fixture is removed.'}
+            'limits':'Only the recorded environment and versions were exercised; a short run does not prove an SLA. Accounts/orders remain as test data; only the product fixture is removed. Order POST attempts are capped, including failed responses; a timed-out write may have committed.'}
     output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps({'scenario':args.scenario,'users':args.users,**result['overall']},indent=2))
