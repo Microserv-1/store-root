@@ -1,0 +1,42 @@
+{
+  "title": "Microserv Store",
+  "authors": "Yuri e Gustavo",
+  "evidence_date": "14/11/2026",
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "Microserv Store",
+      "narration": "Microserv Store é o projeto de Yuri e Gustavo: um backend de comércio eletrônico com seis microsserviços integrados, implantados no Amazon EKS. Este vídeo apresenta evidências reais dos testes de quatorze de novembro."
+    },
+    {
+      "id": "architecture",
+      "title": "Seis serviços, um cluster",
+      "narration": "O Gateway usa Go, Auth usa Java com Spring Boot, e Account usa Python com FastAPI. Product, Order e Exchange completam o fluxo. Os dados ficam em bancos separados no RDS. Jenkins automatiza a release; Prometheus e Grafana acompanham a aplicação."
+    },
+    {
+      "id": "flow",
+      "title": "Fluxo real e acesso protegido",
+      "narration": "O aceite integrado passou em quarenta verificações: cadastro, login, produtos, pedidos e isolamento entre contas. Um pedido de vinte e seis dólares e quarenta e quatro centavos foi consultado em reais usando câmbio externo, sem alterar o valor original em dólares."
+    },
+    {
+      "id": "bottlenecks",
+      "title": "Dois tratamentos por integrante",
+      "narration": "Yuri implementou observabilidade e balanceamento entre réplicas. Gustavo implementou cache Redis e mensageria de pedidos. Os testes verificaram acertos e invalidação do cache, conexão real com RabbitMQ e reentrega sem duplicar a notificação. Persistência não significa tolerância a qualquer falha."
+    },
+    {
+      "id": "business",
+      "title": "Carga progressiva sem erros",
+      "narration": "A carga de negócio usou um, quatro e oito usuários concorrentes. Foram mil seiscentas e onze requisições, sem erros de status ou conteúdo. Com oito usuários, o percentil noventa e cinco ficou em quatrocentos e trinta e quatro milissegundos."
+    },
+    {
+      "id": "hpa",
+      "title": "HPA comprovado nas máquinas menores",
+      "narration": "No login, foram quinhentas e quarenta respostas de sucesso. Account passou de duas para cinco réplicas prontas e voltou a duas. Três pods atenderam verificações de credenciais. A distribuição foi desigual; mais réplicas não garantem tráfego uniforme."
+    },
+    {
+      "id": "conclusion",
+      "title": "Entrega reproduzível, limites explícitos",
+      "narration": "A configuração usa dois workers tê três a médium e um Jenkins tê três a small. O custo fixo estimado é seis dólares e oitenta e nove por dia, mais variáveis. Código, documentação e vídeos estão publicados. O acesso é privado, com banco em uma zona e NAT único."
+    }
+  ]
+}

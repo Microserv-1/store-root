@@ -41,3 +41,7 @@ erros e p95 de 416/414/434 ms. O login com quatro usuários/120s resultou em
 540 respostas 200, zero erros e p95 de 1.156 ms. Vincular o [relatório desta
 rodada](https://microserv-1.github.io/store-docs-a/final-validation/) na sua
 documentação, preservando contexto e versões. Não é medição de SLA mensal.
+
+O agente também produziu o [vídeo curto de 1min57s](https://microserv-1.github.io/store-docs-a/project-video/),
+com narração sintética identificada. Vincular no seu site e confirmar se o
+professor aceita esse formato ou exige participação/voz real dos dois alunos.
