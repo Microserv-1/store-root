@@ -1,5 +1,10 @@
 # Decisões finais — Yuri Henrique e Gustavo Lina
 
+**Conferência em 18/11:** a pausa foi revalidada na AWS. EKS/NAT e
+armazenamento continuam cobrando; o RDS pode reiniciar em 21/11 às 12h08 BRT.
+O [plano concreto de encerramento e retenção](https://microserv-1.github.io/store-docs-a/aws-final-review/)
+está preparado para aprovação. Nenhuma exclusão definitiva foi autorizada.
+
 Estado em 14/11/2026. A bateria técnica foi validada no EKS. Yuri confirmou
 os nomes, pediu vídeo sem narração e autorizou a pausa da AWS, que foi
 executada preservando RDS, volume RabbitMQ e disco Jenkins.
