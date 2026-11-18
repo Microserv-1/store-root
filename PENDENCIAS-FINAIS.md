@@ -3,7 +3,11 @@
 **Conferência em 18/11:** a pausa foi revalidada na AWS. EKS/NAT e
 armazenamento continuam cobrando; o RDS pode reiniciar em 21/11 às 12h08 BRT.
 O [plano concreto de encerramento e retenção](https://microserv-1.github.io/store-docs-a/aws-final-review/)
-está preparado para aprovação. Nenhuma exclusão definitiva foi autorizada.
+fica como referência: Yuri decidiu **manter a pausa e os dados preservados**
+enquanto aguarda o teste do professor. Nenhuma exclusão ou retomada foi autorizada.
+O [roteiro da avaliação](https://microserv-1.github.io/store-docs-a/teacher-evaluation/)
+está preparado; falta definir horário e forma de acesso. Jenkins pode ficar
+parado se a avaliação for somente das APIs.
 
 Estado em 14/11/2026. A bateria técnica foi validada no EKS. Yuri confirmou
 os nomes, pediu vídeo sem narração e autorizou a pausa da AWS, que foi
